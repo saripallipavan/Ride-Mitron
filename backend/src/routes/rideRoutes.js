@@ -1,15 +1,31 @@
-import express from 'express';
-import { postRide, searchRides, getRideDetails, updateRideStatus, cancelRide } from '../controllers/rideController.js';
-import { protect } from '../middleware/authMiddleware.js';
+import express from "express";
+import {
+    postRide,
+    searchRides,
+    getRideDetails,
+    updateRideStatus,
+    cancelRide
+} from "../controllers/rideController.js";
+
+import { protect } from "../middleware/authMiddleware.js";
 
 const router = express.Router();
 
-router.use(protect); // All ride routes are protected
+/*
+Public routes
+Anyone can search rides and view ride details
+*/
 
-router.post('/', postRide);
-router.get('/search', searchRides);
-router.get('/:id', getRideDetails);
-router.put('/:id/status', updateRideStatus);
-router.put('/:id/cancel', cancelRide);
+router.get("/search", searchRides);
+router.get("/:id", getRideDetails);
+
+/*
+Protected routes
+Only logged-in users can create or manage rides
+*/
+
+router.post("/", protect, postRide);
+router.put("/:id/status", protect, updateRideStatus);
+router.put("/:id/cancel", protect, cancelRide);
 
 export default router;
