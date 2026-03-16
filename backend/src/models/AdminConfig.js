@@ -25,12 +25,12 @@ const adminConfigSchema = new mongoose.Schema(
         driverPercentage: {
             type: Number,
             required: true,
-            default: 5,
+            default: 1, // 1% as requested
         },
         riderPercentage: {
             type: Number,
             required: true,
-            default: 10,
+            default: 3, // 3% as requested
         },
         lastUpdatedBy: {
             type: mongoose.Schema.Types.ObjectId,

@@ -80,12 +80,39 @@ export const getMyRequests = async (req, res, next) => {
         const rideIds = myRides.map(r => r._id);
         const driverRequests = await RideRequest.find({ ride: { $in: rideIds } })
             .populate('passenger', 'name rating')
+            .populate('ride')
             .lean();
 
         res.status(200).json({
             asPassenger: passengerRequests,
             asDriver: driverRequests
         });
+    } catch (error) {
+        next(error);
+    }
+};
+
+export const cancelRequest = async (req, res, next) => {
+    try {
+        const { requestId } = req.params;
+        const request = await RideRequest.findById(requestId).populate('ride');
+        
+        if (!request) return res.status(404).json({ message: 'Request not found' });
+
+        if (request.passenger.toString() !== req.user._id.toString()) {
+            return res.status(403).json({ message: 'Unauthorized' });
+        }
+
+        if (request.status === 'ACCEPTED') {
+            // Give seats back if it was accepted
+            request.ride.availableSeats += request.seatsRequested;
+            await request.ride.save();
+        }
+
+        request.status = REQUEST_STATUS.CANCELLED;
+        await request.save();
+
+        res.status(200).json({ message: 'Request cancelled successfully' });
     } catch (error) {
         next(error);
     }

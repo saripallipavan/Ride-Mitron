@@ -2,9 +2,9 @@ import { useState, useEffect, useCallback, useMemo, memo } from 'react';
 import { adminAPI } from '../api/apiRoutes';
 import Loader from '../components/Loader';
 import { 
-    Settings, Users, ArrowUpRight, Shield, FuelIcon, Activity, 
+    Users, Shield, FuelIcon, Activity, 
     TrendingUp, MapPin, CreditCard, ShieldAlert, CheckCircle2, 
-    XCircle, Clock, Search, Filter, Download
+    XCircle, Clock, Search, Download
 } from 'lucide-react';
 
 // Memoized MetricCard to prevent expensive re-renders
@@ -34,6 +34,8 @@ const MetricCard = memo(({ title, value, icon, trend, color }) => {
         </div>
     );
 });
+
+MetricCard.displayName = 'MetricCard';
 
 export default function AdminPanel() {
     const [stats, setStats] = useState(null);

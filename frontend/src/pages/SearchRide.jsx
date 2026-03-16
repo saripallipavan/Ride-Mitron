@@ -2,7 +2,7 @@ import { useState, useCallback, useMemo, useEffect } from 'react';
 import { rideAPI } from '../api/apiRoutes';
 import RideCard from '../components/RideCard';
 import useDebounce from '../hooks/useDebounce';
-import { Search, MapPin, Navigation, Calendar as CalendarIcon, Filter, Globe, Zap, ArrowRight, Loader2 } from 'lucide-react';
+import { Search, MapPin, Navigation, Calendar as CalendarIcon, Filter, Globe, Zap, ArrowRight, Loader2, Users } from 'lucide-react';
 
 export default function SearchRide() {
     const [loading, setLoading] = useState(false);
@@ -10,13 +10,17 @@ export default function SearchRide() {
     const [hasSearched, setHasSearched] = useState(false);
 
     const [searchParams, setSearchParams] = useState({
-        originName: 'Delhi',
-        destName: 'Gurugram',
-        date: new Date().toISOString().split('T')[0]
+        originName: '',
+        destName: '',
+        date: new Date().toISOString().split('T')[0],
+        time: '',
+        seats: 1
     });
 
+    const [appliedMessage, setAppliedMessage] = useState('');
+
     // Debounce the entire search params
-    const debouncedParams = useDebounce(searchParams, 800);
+    const debouncedParams = useDebounce(searchParams, 400);
 
     const handleChange = useCallback((e) => {
         const { name, value } = e.target;
@@ -37,16 +41,15 @@ export default function SearchRide() {
     }, []);
 
     const handleFormSubmit = (e) => {
-        e.preventDefault();
+        if (e) e.preventDefault();
         performSearch(searchParams);
     };
 
-    // Auto-search on debounced params if they change (optional "live" feel)
-    useEffect(() => {
-        if (hasSearched) {
-            performSearch(debouncedParams);
-        }
-    }, [debouncedParams, performSearch, hasSearched]);
+    const handleApply = () => {
+        performSearch(searchParams);
+        setAppliedMessage('Filters applied successfully');
+        setTimeout(() => setAppliedMessage(''), 3000);
+    };
 
     const rideList = useMemo(() => {
         return rides.map((ride, index) => (
@@ -87,39 +90,64 @@ export default function SearchRide() {
 
             {/* High-End Search Console */}
             <div className="max-w-6xl w-full mx-auto px-4 -mt-36 relative z-20 mb-20 animate-slide-up">
-                <form onSubmit={handleFormSubmit} className="glass-panel !p-3 sm:!p-4 grid grid-cols-1 md:grid-cols-12 gap-4 items-stretch shadow-3xl border-white/40">
+                {appliedMessage && (
+                    <div className="absolute -top-12 left-1/2 -translate-x-1/2 bg-emerald-500 text-white text-[10px] font-black uppercase tracking-widest px-6 py-2 rounded-full shadow-lg flex items-center gap-2 animate-bounce">
+                        <Zap className="w-3 h-3 fill-white" /> {appliedMessage}
+                    </div>
+                )}
+                
+                <form onSubmit={handleFormSubmit} className="glass-panel !p-4 flex flex-col gap-6 shadow-3xl border-white/40">
+                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 items-stretch">
+                        <div className="flex items-center bg-white/40 border border-slate-100 rounded-[2rem] px-6 py-4 group focus-within:ring-4 focus-within:ring-primary-500/10 focus-within:bg-white transition-all">
+                            <MapPin className="text-slate-400 group-focus-within:text-primary-500 w-6 h-6 mr-4 shrink-0 transition-all group-focus-within:scale-110" />
+                            <div className="w-full">
+                                <label className="block text-[10px] font-black uppercase tracking-[0.2em] text-slate-400 mb-0.5">Pickup Location</label>
+                                <input name="originName" value={searchParams.originName} onChange={handleChange} className="w-full bg-transparent focus:outline-none text-slate-900 font-black text-lg tracking-tight placeholder:text-slate-300" placeholder="Where from?" />
+                            </div>
+                        </div>
 
-                    <div className="md:col-span-4 flex items-center bg-white/40 border border-slate-100 rounded-[2rem] px-6 py-4 group focus-within:ring-4 focus-within:ring-primary-500/10 focus-within:bg-white transition-all">
-                        <MapPin className="text-slate-400 group-focus-within:text-primary-500 w-7 h-7 mr-4 shrink-0 transition-all group-focus-within:scale-110" />
-                        <div className="w-full">
-                            <label className="block text-[10px] font-black uppercase tracking-[0.2em] text-slate-400 mb-0.5">Origin Vector</label>
-                            <input name="originName" value={searchParams.originName} onChange={handleChange} className="w-full bg-transparent focus:outline-none text-slate-900 font-black text-xl tracking-tight placeholder:text-slate-300" placeholder="Point A" />
+                        <div className="flex items-center bg-white/40 border border-slate-100 rounded-[2rem] px-6 py-4 group focus-within:ring-4 focus-within:ring-primary-500/10 focus-within:bg-white transition-all">
+                            <Navigation className="text-indigo-600 group-focus-within:text-primary-500 w-6 h-6 mr-4 shrink-0 transition-all group-focus-within:scale-110 transform rotate-45" />
+                            <div className="w-full">
+                                <label className="block text-[10px] font-black uppercase tracking-[0.2em] text-slate-400 mb-0.5">Destination</label>
+                                <input name="destName" value={searchParams.destName} onChange={handleChange} className="w-full bg-transparent focus:outline-none text-slate-900 font-black text-lg tracking-tight placeholder:text-slate-300" placeholder="Where to?" />
+                            </div>
+                        </div>
+
+                        <div className="flex items-center bg-white/40 border border-slate-100 rounded-[2rem] px-6 py-4 group focus-within:ring-4 focus-within:ring-primary-500/10 focus-within:bg-white transition-all">
+                            <CalendarIcon className="text-slate-400 group-focus-within:text-primary-500 w-6 h-6 mr-4 shrink-0" />
+                            <div className="w-full">
+                                <label className="block text-[10px] font-black uppercase tracking-[0.2em] text-slate-400 mb-0.5">Date</label>
+                                <input type="date" name="date" value={searchParams.date} onChange={handleChange} className="bg-transparent focus:outline-none text-slate-900 font-black w-full text-lg cursor-pointer" />
+                            </div>
+                        </div>
+
+                        <div className="flex items-center bg-white/40 border border-slate-100 rounded-[2rem] px-6 py-4 group focus-within:ring-4 focus-within:ring-primary-500/10 focus-within:bg-white transition-all">
+                            <Users className="text-slate-400 group-focus-within:text-primary-500 w-6 h-6 mr-4 shrink-0" />
+                            <div className="w-full">
+                                <label className="block text-[10px] font-black uppercase tracking-[0.2em] text-slate-400 mb-0.5">Required Seats</label>
+                                <select 
+                                    name="seats" 
+                                    value={searchParams.seats} 
+                                    onChange={handleChange} 
+                                    className="bg-transparent focus:outline-none text-slate-900 font-black w-full text-lg cursor-pointer appearance-none"
+                                >
+                                    {[1,2,3,4,5,6].map(s => <option key={s} value={s}>{s} Seats</option>)}
+                                </select>
+                            </div>
                         </div>
                     </div>
 
-                    <div className="md:col-span-4 flex items-center bg-white/40 border border-slate-100 rounded-[2rem] px-6 py-4 group focus-within:ring-4 focus-within:ring-primary-500/10 focus-within:bg-white transition-all">
-                        <Navigation className="text-indigo-600 group-focus-within:text-primary-500 w-7 h-7 mr-4 shrink-0 transition-all group-focus-within:scale-110 transform rotate-45" />
-                        <div className="w-full">
-                            <label className="block text-[10px] font-black uppercase tracking-[0.2em] text-slate-400 mb-0.5">Target Vector</label>
-                            <input name="destName" value={searchParams.destName} onChange={handleChange} className="w-full bg-transparent focus:outline-none text-slate-900 font-black text-xl tracking-tight placeholder:text-slate-300" placeholder="Point B" />
-                        </div>
+                    <div className="flex justify-center">
+                        <button 
+                            type="button" 
+                            onClick={handleApply}
+                            disabled={loading} 
+                            className="bg-primary-600 hover:bg-primary-500 text-white rounded-full py-5 px-16 font-black text-[12px] uppercase tracking-[0.3em] shadow-2xl active:scale-95 transition-all flex items-center justify-center gap-4 min-w-[300px]"
+                        >
+                            {loading ? <Loader2 className="h-5 w-5 animate-spin" /> : <>APPLY FILTERS <ArrowRight className="w-4 h-4" /></>}
+                        </button>
                     </div>
-
-                    <div className="md:col-span-3 flex items-center bg-white/40 border border-slate-100 rounded-[2rem] px-6 py-4 group focus-within:ring-4 focus-within:ring-primary-500/10 focus-within:bg-white transition-all">
-                        <CalendarIcon className="text-slate-400 group-focus-within:text-primary-500 w-7 h-7 mr-4 shrink-0" />
-                        <div className="w-full">
-                            <label className="block text-[10px] font-black uppercase tracking-[0.2em] text-slate-400 mb-0.5">Chronos</label>
-                            <input type="date" name="date" value={searchParams.date} onChange={handleChange} className="bg-transparent focus:outline-none text-slate-900 font-black w-full text-lg cursor-pointer" />
-                        </div>
-                    </div>
-
-                    <button type="submit" disabled={loading} className="md:col-span-1 h-full min-h-[5rem] bg-slate-900 hover:bg-black text-white rounded-[2rem] font-black shadow-2xl active:scale-95 transition-all flex items-center justify-center group shrink-0">
-                        {loading ? (
-                            <Loader2 className="h-7 w-7 animate-spin text-primary-400" />
-                        ) : (
-                            <Search className="w-7 h-7 group-hover:scale-125 transition-transform" />
-                        )}
-                    </button>
                 </form>
             </div>
 

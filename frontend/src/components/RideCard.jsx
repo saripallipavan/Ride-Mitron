@@ -54,33 +54,37 @@ const RideCard = memo(({ ride }) => {
                     <div className="flex items-center gap-4">
                         <div className="w-14 h-14 rounded-2xl bg-[#020617] flex items-center justify-center text-white font-black text-xl shadow-2xl relative overflow-hidden">
                             <div className="absolute inset-0 bg-gradient-to-br from-primary-600/20 to-transparent"></div>
-                            {ride.driver?.name.charAt(0)}
+                            {ride.driver?.name?.charAt(0)}
                         </div>
                         <div>
                             <span className="block font-black text-slate-900 text-sm tracking-tight leading-none mb-1 uppercase">{ride.driver?.name}</span>
-                            <div className="flex items-center gap-2 text-[10px] font-black text-slate-400 tracking-widest uppercase">
-                                <Car className="w-3.5 h-3.5 text-indigo-500" /> {ride.vehicleType}
+                            <div className="flex items-center gap-1.5 text-[10px] font-black text-slate-400 tracking-widest uppercase">
+                                <Car className="w-3.5 h-3.5 text-indigo-500" /> {ride.driver?.vehicleDetails?.model || ride.vehicleType}
+                            </div>
+                            <div className="flex items-center gap-1 mt-1">
+                                <Star className="w-3 h-3 text-amber-500 fill-amber-500" />
+                                <span className="text-[10px] font-black text-slate-600 uppercase tracking-widest">{ride.driver?.rating || '4.8'} Verified</span>
                             </div>
                         </div>
                     </div>
 
                     <div className="flex flex-col items-end gap-2">
-                        <div className="flex items-center gap-2 bg-emerald-50 border border-emerald-100 px-4 py-2 rounded-2xl text-emerald-700 font-black text-[10px] tracking-widest uppercase">
-                            {ride.availableSeats} UNITS <Users className="w-3.5 h-3.5" />
+                        <div className="flex items-center gap-2 bg-emerald-50 border border-emerald-100 px-4 py-2 rounded-2xl text-emerald-700 font-black text-[10px] tracking-widest uppercase shadow-sm">
+                            <Users className="w-3.5 h-3.5" /> {ride.availableSeats} UNITS
                         </div>
                     </div>
                 </div>
 
                 {/* Cyberpunk Link Overlay */}
-                <Link to={`/ride/${ride._id}`} className="absolute inset-0 z-10 opacity-0 group-hover:opacity-100 transition-all duration-500 bg-white/90 backdrop-blur-md flex items-center justify-center">
+                <Link to={`/ride/${ride._id}`} className="absolute inset-0 z-10 opacity-0 group-hover:opacity-100 transition-all duration-500 bg-white/95 backdrop-blur-xl flex items-center justify-center">
                     <div className="p-10 text-center scale-90 group-hover:scale-100 transition-transform duration-500">
                         <div className="bg-primary-600 w-16 h-16 rounded-[2rem] flex items-center justify-center text-white mx-auto mb-6 shadow-2xl shadow-primary-600/40">
                             <Target className="w-8 h-8" />
                         </div>
-                        <h4 className="text-2xl font-black text-slate-900 tracking-tighter mb-2 uppercase">INTERCEPT ROUTE</h4>
-                        <p className="text-[10px] font-black text-slate-400 tracking-[0.3em] uppercase mb-8">Full Telemetry & Payment</p>
-                        <div className="btn-primary !py-4 px-10 text-[10px] tracking-widest uppercase">
-                            Connect Signal <ChevronRight className="w-4 h-4 ml-1" />
+                        <h4 className="text-2xl font-black text-slate-900 tracking-tighter mb-2 uppercase">VIEW JOURNEY</h4>
+                        <p className="text-[10px] font-black text-slate-400 tracking-[0.3em] uppercase mb-8">Access Driver Signal & Book</p>
+                        <div className="btn-primary !py-4 px-12 text-[10px] tracking-widest uppercase flex items-center gap-2">
+                            View Ride Details <ChevronRight className="w-4 h-4" />
                         </div>
                     </div>
                 </Link>
@@ -89,4 +93,5 @@ const RideCard = memo(({ ride }) => {
     );
 });
 
+RideCard.displayName = 'RideCard';
 export default RideCard;

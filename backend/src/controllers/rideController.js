@@ -5,15 +5,47 @@ import User from '../models/User.js';
 
 import AdminConfig from '../models/AdminConfig.js';
 
+// Basic in-memory cache for AdminConfig to avoid repeated DB hits
+let cachedConfig = null;
+let lastCacheTime = 0;
+const CACHE_DURATION = 5 * 60 * 1000; // 5 minutes
+
+const getAdminConfig = async () => {
+    const now = Date.now();
+    if (cachedConfig && (now - lastCacheTime < CACHE_DURATION)) {
+        return cachedConfig;
+    }
+    const config = await AdminConfig.findOne().sort({ createdAt: -1 }).lean() || { 
+        petrolPrice: 100, 
+        dieselPrice: 90, 
+        riderMinFee: 15, 
+        riderPercentage: 3, 
+        driverMinFee: 10, 
+        driverPercentage: 1 
+    };
+    cachedConfig = config;
+    lastCacheTime = now;
+    return config;
+};
+
+const calculateStars = (totalRides) => {
+    if (totalRides >= 1000) return 5;
+    if (totalRides >= 500) return 4;
+    if (totalRides >= 200) return 3;
+    if (totalRides >= 100) return 2;
+    if (totalRides >= 50) return 1;
+    return 0;
+};
+
 export const postRide = async (req, res, next) => {
     try {
         // Basic verification
-        const user = await User.findById(req.user._id).lean();
+        const user = await User.findById(req.user._id).select('vehicleDetails totalRidesGiven').lean();
         if (!user || !user.vehicleDetails || !user.vehicleDetails.hasVehicle) {
             return res.status(403).json({ message: 'Must add vehicle details to post a ride' });
         }
 
-        let { origin, destination, startTime, totalSeats } = req.body;
+        let { origin, destination, startTime, totalSeats, manualDistance } = req.body;
 
         if (!origin?.coordinates || origin.coordinates.length < 2 || origin.coordinates[0] == null) {
             origin.coordinates = await geocodeAddress(origin.name);
@@ -23,13 +55,16 @@ export const postRide = async (req, res, next) => {
             destination.coordinates = await geocodeAddress(destination.name);
         }
 
-        // Get distance using Google Maps Service
-        const distanceData = await getDistanceMatrix(
-            origin.coordinates,
-            destination.coordinates
-        );
+        let distanceKm = manualDistance ? parseFloat(manualDistance) : 0;
 
-        const distanceKm = distanceData.distanceValue / 1000;
+        if (!manualDistance) {
+            // Get distance using Google Maps Service
+            const distanceData = await getDistanceMatrix(
+                origin.coordinates,
+                destination.coordinates
+            );
+            distanceKm = distanceData.distanceValue / 1000;
+        }
 
         // Cost calculation calculation model as spec Model logic
         let totalFuelCost = 0;
@@ -39,7 +74,7 @@ export const postRide = async (req, res, next) => {
         let costPerSeat = 0; // Rider Cost
 
         if (distanceKm > 0) {
-            const config = await AdminConfig.findOne().sort({ createdAt: -1 }).lean() || { petrolPrice: 100, dieselPrice: 90, riderMinFee: 15, riderPercentage: 10, driverMinFee: 10, driverPercentage: 5 };
+            const config = await getAdminConfig();
             const mileageToUse = user.vehicleDetails.mileage || 15;
             const hasDiesel = user.vehicleDetails.fuelType === 'diesel';
             const priceToUse = hasDiesel ? config.dieselPrice : config.petrolPrice;
@@ -134,9 +169,52 @@ export const searchRides = async (req, res, next) => {
                 $lte: new Date(endOfDay),
             },
             driver: { $ne: req.user._id } // Don't show user's own rides
-        }).populate('driver', 'name rating vehicleDetails.model').lean();
+        })
+        .select('origin destination startTime availableSeats vehicleType costPerSeat driver')
+        .populate('driver', 'name rating vehicleDetails.model totalRidesGiven')
+        .limit(30)
+        .lean();
 
-        res.status(200).json(rides);
+        const ridesWithStars = rides.map(r => ({
+            ...r,
+            driver: {
+                ...r.driver,
+                stars: calculateStars(r.driver.totalRidesGiven || 0)
+            }
+        }));
+
+        res.status(200).json(ridesWithStars);
+    } catch (error) {
+        next(error);
+    }
+};
+
+export const updateRideStatus = async (req, res, next) => {
+    try {
+        const { id } = req.params;
+        const { status } = req.body;
+
+        const ride = await Ride.findById(id);
+        if (!ride) return res.status(404).json({ message: 'Ride not found' });
+
+        if (ride.driver.toString() !== req.user._id.toString()) {
+            return res.status(403).json({ message: 'Only driver can update ride status' });
+        }
+
+        ride.status = status;
+        await ride.save();
+
+        // If completed, increment rides taken for all accepted passengers
+        if (status === 'COMPLETED') {
+            const RideRequest = (await import('../models/RideRequest.js')).default;
+            const requests = await RideRequest.find({ ride: id, status: 'ACCEPTED' });
+            
+            for (const request of requests) {
+                await User.findByIdAndUpdate(request.passenger, { $inc: { totalRidesTaken: 1 } });
+            }
+        }
+
+        res.status(200).json(ride);
     } catch (error) {
         next(error);
     }
@@ -146,13 +224,74 @@ export const getRideDetails = async (req, res, next) => {
     try {
         const ride = await Ride.findById(req.params.id)
             .populate('driver', 'name phoneNumber rating totalRidesGiven vehicleDetails')
+            .select('-__v')
             .lean();
 
         if (!ride) {
             return res.status(404).json({ message: 'Ride not found' });
         }
 
+        ride.driver.stars = calculateStars(ride.driver.totalRidesGiven || 0);
+
+        // Hide driver details unless user has paid or is the driver
+        if (ride.driver._id.toString() !== req.user._id.toString()) {
+            const RideRequest = (await import('../models/RideRequest.js')).default;
+            const paidRequest = await RideRequest.findOne({
+                ride: ride._id,
+                passenger: req.user._id,
+                status: 'ACCEPTED'
+            }).lean();
+
+            if (!paidRequest) {
+                // Check if they just paid the fee but not yet accepted
+                const paidFee = await RideRequest.findOne({
+                    ride: ride._id,
+                    passenger: req.user._id,
+                    riderPaid: true
+                }).lean();
+                
+                if (!paidFee) {
+                    ride.driver.phoneNumber = 'HIDDEN (Pay to Unlock)';
+                }
+            }
+        } else {
+            // If user is driver, show accepted passengers details
+            const RideRequest = (await import('../models/RideRequest.js')).default;
+            const acceptedPassengers = await RideRequest.find({
+                ride: ride._id,
+                status: 'ACCEPTED'
+            }).populate('passenger', 'name phoneNumber rating').lean();
+            
+            ride.passengers = acceptedPassengers;
+        }
+
         res.status(200).json(ride);
+    } catch (error) {
+        next(error);
+    }
+};
+
+export const cancelRide = async (req, res, next) => {
+    try {
+        const ride = await Ride.findById(req.params.id);
+        if (!ride) return res.status(404).json({ message: 'Ride not found' });
+
+        if (ride.driver.toString() !== req.user._id.toString()) {
+            return res.status(403).json({ message: 'Only driver can cancel the ride' });
+        }
+
+        if (ride.status === 'COMPLETED') {
+            return res.status(400).json({ message: 'Cannot cancel a completed ride' });
+        }
+
+        ride.status = 'CANCELLED';
+        await ride.save();
+
+        // Also cancel all related requests
+        const RideRequest = (await import('../models/RideRequest.js')).default;
+        await RideRequest.updateMany({ ride: ride._id }, { status: 'CANCELLED' });
+
+        res.status(200).json({ message: 'Ride cancelled successfully' });
     } catch (error) {
         next(error);
     }

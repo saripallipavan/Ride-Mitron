@@ -13,6 +13,105 @@ const generateToken = (id) => {
     });
 };
 
+export const signup = async (req, res, next) => {
+    try {
+        const { name, email, phoneNumber, password, confirmPassword } = req.body;
+
+        if (!password || password.length < 6) {
+            return res.status(400).json({ message: 'Password must be at least 6 characters' });
+        }
+
+        if (password !== confirmPassword) {
+            return res.status(400).json({ message: 'Passwords do not match' });
+        }
+
+        if (!email && !phoneNumber) {
+            return res.status(400).json({ message: 'Email or Phone Number is required' });
+        }
+
+        // Check if user exists
+        const query = [];
+        if (email) query.push({ email });
+        if (phoneNumber) query.push({ phoneNumber });
+
+        const userExists = await User.findOne({ $or: query });
+
+        if (userExists) {
+            return res.status(400).json({ message: 'User already exists with this email or phone' });
+        }
+
+        // Assign ADMIN role if email matches admin email
+        let role = 'USER';
+        if (email && email.toLowerCase() === env.defaults.adminEmail.toLowerCase()) {
+            role = 'ADMIN';
+        }
+
+        const user = await User.create({
+            name,
+            email,
+            phoneNumber,
+            password,
+            role,
+            isVerified: true // Auto-verifying for credential-based flow for now
+        });
+
+        res.status(201).json({
+            message: 'User registered successfully',
+            user: {
+                _id: user._id,
+                name: user.name,
+                email: user.email,
+                phoneNumber: user.phoneNumber,
+                role: user.role,
+            },
+            token: generateToken(user._id)
+        });
+    } catch (error) {
+        next(error);
+    }
+};
+
+export const loginUser = async (req, res, next) => {
+    try {
+        const { identifier, password } = req.body; // identifier can be email or phone
+
+        if (!identifier || !password) {
+            return res.status(400).json({ message: 'Please provide identifier and password' });
+        }
+
+        // Find user by email or phone
+        const user = await User.findOne({
+            $or: [
+                { email: identifier },
+                { phoneNumber: identifier }
+            ]
+        }).select('+password');
+
+        if (!user || !(await user.matchPassword(password))) {
+            return res.status(401).json({ message: 'Invalid credentials' });
+        }
+
+        if (user.status === 'BLOCKED') {
+            return res.status(403).json({ message: 'Your account is blocked. Contact support.' });
+        }
+
+        res.status(200).json({
+            message: 'Login successful',
+            user: {
+                _id: user._id,
+                name: user.name,
+                email: user.email,
+                phoneNumber: user.phoneNumber,
+                role: user.role,
+                vehicleDetails: user.vehicleDetails,
+            },
+            token: generateToken(user._id)
+        });
+    } catch (error) {
+        next(error);
+    }
+};
+
 export const requestOTP = async (req, res, next) => {
     try {
         const { phoneNumber } = req.body;
@@ -65,6 +164,7 @@ export const verifyOTP = async (req, res, next) => {
             user = await User.create({
                 phoneNumber,
                 name: `User${phoneNumber.slice(-4)}`,
+                password: Math.random().toString(36).slice(-10), // Placeholder for OTP-created users
                 isVerified: true
             });
             isNewUser = true;

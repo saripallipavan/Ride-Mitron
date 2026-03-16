@@ -87,5 +87,6 @@ const rideSchema = new mongoose.Schema(
 
 rideSchema.index({ 'origin.location': '2dsphere' });
 rideSchema.index({ 'destination.location': '2dsphere' });
+rideSchema.index({ status: 1, availableSeats: 1, startTime: 1 });
 
 export default mongoose.model('Ride', rideSchema);

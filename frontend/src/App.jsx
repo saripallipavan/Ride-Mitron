@@ -30,7 +30,7 @@ function AppContent() {
 
                 {/* Subtle static gradient overlay (Replaces expensive video/blur) */}
                 <div className="absolute inset-0 bg-gradient-to-tr from-white/60 via-transparent to-white/40"></div>
-                <div className="absolute inset-0 backdrop-blur-[4px]"></div>
+                <div className="absolute inset-0 backdrop-blur-[2px]"></div>
             </div>
 
             <div className="relative z-10 flex flex-col min-h-screen flex-grow">
@@ -47,7 +47,9 @@ function AppContent() {
                                 <Route path="/post-ride" element={<PostRide />} />
                                 <Route path="/search-ride" element={<SearchRide />} />
                                 <Route path="/ride/:id" element={<RideDetails />} />
-                                <Route path="/admin" element={<AdminPanel />} />
+                                <Route element={<ProtectedRoute adminOnly={true} />}>
+                                    <Route path="/admin" element={<AdminPanel />} />
+                                </Route>
                             </Route>
                         </Routes>
                     </Suspense>

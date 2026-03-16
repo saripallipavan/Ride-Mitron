@@ -1,5 +1,3 @@
-process.env.NODE_TLS_REJECT_UNAUTHORIZED = '0'; // Bypass local SSL/Antivirus checks for MongoDB
-
 import app from './app.js';
 import { env } from './config/env.js';
 import { connectDB } from './config/db.js';

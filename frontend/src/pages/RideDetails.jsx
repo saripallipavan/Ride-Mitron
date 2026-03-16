@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { rideAPI, bookingAPI, paymentAPI } from '../api/apiRoutes';
 import { useAuth } from '../context/AuthContext';
-import { Clock, Users, Info, CarFront, Calculator, Globe, Zap, Target, ShieldCheck, ChevronRight, Navigation } from 'lucide-react';
+import { Clock, Users, Info, CarFront, Calculator, Globe, Zap, ShieldCheck, ChevronRight, Navigation, MapPin, CreditCard, Phone } from 'lucide-react';
 import Loader from '../components/Loader';
 
 export default function RideDetails() {
@@ -77,242 +77,294 @@ export default function RideDetails() {
             rzp.open();
 
         } catch (error) {
-            alert(error.response?.data?.message || 'Failed to request booking');
+            console.error("Booking Error:", error.response?.data);
+            alert(error.response?.data?.message || 'Failed to initiate sync request. Please try again.');
             setBookingLoading(false);
         }
     };
 
     if (loading) return <Loader />;
-    if (!ride) return <div>Ride not found</div>;
+    if (!ride) return (
+        <div className="flex justify-center items-center h-screen">
+            <p className="text-xl font-black text-slate-500 uppercase tracking-widest">Signal Not Found</p>
+        </div>
+    );
+
+    const isDriver = user?._id === ride.driver?._id;
 
     const totalCapacity = ride.totalSeats + 1;
     const singleFuelShare = ride.fuelCost / totalCapacity;
 
     const rideDate = new Date(ride.startTime);
-    const dateFormatted = rideDate.toLocaleDateString([], { weekday: 'long', month: 'long', day: 'numeric' });
+    const dateFormatted = rideDate.toLocaleDateString([], { weekday: 'short', month: 'short', day: 'numeric' });
     const timeFormatted = rideDate.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
 
     return (
-        <div className="max-w-6xl mx-auto py-12 lg:py-20 px-4 animate-fade-in relative z-10 w-full mb-32">
-            
-            <div className="glass-panel overflow-hidden border-none shadow-3xl bg-white/20">
+        <div className="w-full relative min-h-screen pb-40">
+            {/* Background Decor */}
+            <div className="fixed inset-0 pointer-events-none overflow-hidden -z-10">
+                <div className="absolute top-0 right-0 w-[60rem] h-[60rem] bg-indigo-600/5 rounded-full blur-[120px] -translate-y-1/2 translate-x-1/2"></div>
+                <div className="absolute bottom-0 left-0 w-[50rem] h-[50rem] bg-primary-600/5 rounded-full blur-[100px] translate-y-1/2 -translate-x-1/2"></div>
+            </div>
+
+            {/* Hero Section */}
+            <div className="w-full bg-[#020617] relative overflow-hidden pt-32 pb-48 px-6 sm:px-12 rounded-b-[4rem] sm:rounded-b-[6rem]">
+                <div className="absolute inset-0 bg-[url('https://www.transparenttextures.com/patterns/carbon-fibre.png')] opacity-10 mix-blend-overlay"></div>
+                <div className="absolute top-0 left-1/4 w-[40rem] h-[40rem] bg-primary-600/10 rounded-full blur-[150px] mix-blend-screen pointer-events-none animate-pulse"></div>
                 
-                {/* Advanced Header - Carbon Fiber + Cinematic Gradients */}
-                <div className="bg-[#020617] text-white p-10 sm:p-16 relative overflow-hidden rounded-t-[3rem] sm:rounded-t-[4rem]">
-                    <div className="absolute inset-0 bg-[url('https://www.transparenttextures.com/patterns/carbon-fibre.png')] opacity-10 mix-blend-overlay"></div>
-                    <div className="absolute top-0 right-0 w-[50rem] h-[50rem] bg-primary-600 rounded-full blur-[120px] opacity-20 -translate-y-1/2 translate-x-1/3"></div>
-                    
-                    <div className="relative z-10 flex flex-col md:flex-row justify-between items-center gap-12">
-                        <div className="flex-1">
-                            <div className="inline-flex items-center gap-3 bg-white/5 backdrop-blur-3xl border border-white/10 px-5 py-2 rounded-full mb-10 text-primary-200 font-black uppercase tracking-[0.3em] text-[10px] shadow-2xl">
-                                <Globe className="w-4 h-4 text-primary-400 animate-spin-slow" /> Network Trajectory: {ride.distanceKm.toFixed(1)} KM
+                <div className="max-w-7xl mx-auto relative z-10">
+                    <div className="flex flex-col lg:flex-row lg:items-end justify-between gap-12">
+                        <div className="space-y-6 max-w-4xl">
+                            <div className="inline-flex items-center gap-2 bg-white/5 backdrop-blur-3xl border border-white/10 px-4 py-1.5 rounded-full text-primary-300 font-black uppercase tracking-[0.3em] text-[9px] shadow-2xl">
+                                <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse"></span>
+                                ACTIVE TRAJECTORY SIGNAL
                             </div>
                             
-                            <h1 className="text-5xl sm:text-7xl font-black tracking-tighter leading-[0.9] mb-4 uppercase italic">
+                            <h1 className="text-4xl md:text-6xl lg:text-7xl font-black tracking-[-0.05em] text-white leading-[1.1] uppercase">
                                 {ride.origin.name.split(',')[0]} 
-                                <span className="text-primary-500 font-normal mx-4 animate-pulse">/</span> 
+                                <span className="text-primary-500 mx-4 opacity-50 italic">/</span> 
                                 {ride.destination.name.split(',')[0]}
                             </h1>
-                            
-                            <div className="flex items-center gap-6 mt-8">
-                                <div className="flex items-center gap-2 text-slate-400 font-black text-xs uppercase tracking-widest">
-                                    <Clock className="w-4 h-4 text-indigo-400" /> {dateFormatted}
-                                </div>
-                                <div className="w-1.5 h-1.5 rounded-full bg-slate-700"></div>
-                                <div className="flex items-center gap-2 text-slate-400 font-black text-xs uppercase tracking-widest">
-                                    <Zap className="w-4 h-4 text-primary-400" /> {timeFormatted}
-                                </div>
-                            </div>
-                        </div>
 
-                        <div className="shrink-0">
-                            <div className="glass-panel !bg-white/5 border-white/10 p-10 rounded-[3rem] text-center shadow-3xl">
-                                <p className="text-[10px] font-black uppercase tracking-[0.3em] text-primary-300 mb-4 opacity-70">Energy Quota / Unit</p>
-                                <p className="text-7xl font-black text-white leading-none tracking-tighter">₹{ride.costPerSeat.toFixed(0)}</p>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-
-                <div className="p-10 sm:p-20 grid lg:grid-cols-12 gap-16 lg:gap-24 relative">
-                    {/* Decorative Background Element */}
-                    <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-full h-full bg-[url('https://www.transparenttextures.com/patterns/cubes.png')] opacity-[0.02] pointer-events-none"></div>
-
-                    {/* Telemetry Panel (Left side) */}
-                    <div className="lg:col-span-7 space-y-20 relative z-10">
-                        
-                        {/* Driver Profile Vector */}
-                        <div>
-                            <div className="flex items-center gap-4 mb-10">
-                                <div className="w-2 h-8 bg-primary-600 rounded-full"></div>
-                                <h3 className="text-2xl font-black text-slate-900 tracking-tighter uppercase">Operator Identity</h3>
-                            </div>
-
-                            <div className="flex items-center gap-10 bg-white/40 backdrop-blur-3xl p-10 rounded-[3rem] border border-white/60 shadow-xl group">
-                                <div className="relative">
-                                    <div className="w-28 h-28 rounded-[2.5rem] bg-gradient-to-br from-[#020617] to-indigo-950 flex items-center justify-center text-white font-black text-5xl shadow-2xl relative z-10 overflow-hidden transform group-hover:rotate-6 transition-transform">
-                                        <div className="absolute inset-0 bg-primary-600/20 mix-blend-overlay"></div>
-                                        {ride.driver.name.charAt(0)}
+                            <div className="flex flex-wrap items-center gap-8 text-slate-400">
+                                <div className="flex items-center gap-3">
+                                    <div className="w-10 h-10 rounded-xl bg-white/5 flex items-center justify-center border border-white/10 shadow-lg">
+                                        <Clock className="w-4 h-4 text-indigo-400" />
                                     </div>
-                                    <div className="absolute -bottom-2 -right-2 w-10 h-10 bg-emerald-500 border-4 border-white rounded-full z-20 flex items-center justify-center text-white">
-                                        <ShieldCheck className="w-5 h-5" />
+                                    <div>
+                                        <p className="text-[9px] font-black uppercase tracking-widest text-slate-500 mb-0.5">Departure</p>
+                                        <p className="text-white font-bold text-sm">{dateFormatted} · {timeFormatted}</p>
                                     </div>
                                 </div>
-                                <div className="flex-1">
-                                    <h4 className="font-black text-slate-900 text-3xl mb-3 tracking-tight">{ride.driver.name}</h4>
-                                    <div className="flex items-center gap-4 mb-6">
-                                        <div className="flex items-center gap-2 bg-amber-50 text-amber-700 px-4 py-1.5 rounded-2xl font-black text-xs border border-amber-100 uppercase tracking-widest shadow-sm">
-                                            {ride.driver.rating?.toFixed(1) || '5.0'} Score <Zap className="w-3.5 h-3.5 fill-amber-500" />
-                                        </div>
-                                        <div className="flex items-center gap-2 bg-emerald-50 text-emerald-700 px-4 py-1.5 rounded-2xl font-black text-xs border border-emerald-100 uppercase tracking-widest shadow-sm">
-                                            {ride.driver.totalRidesGiven || 0} Transfers
-                                        </div>
+                                <div className="h-10 w-px bg-white/10 hidden md:block"></div>
+                                <div className="flex items-center gap-3">
+                                    <div className="w-10 h-10 rounded-xl bg-white/5 flex items-center justify-center border border-white/10 shadow-lg">
+                                        <CarFront className="w-4 h-4 text-emerald-400" />
                                     </div>
-                                    <div className="inline-flex items-center gap-3 bg-[#020617] text-white px-6 py-3 rounded-2xl text-[10px] font-black uppercase tracking-[0.2em] shadow-2xl hover:bg-slate-800 transition-colors">
-                                        <CarFront className="w-4 h-4 text-primary-400" /> {ride.vehicleType} Class Asset
+                                    <div>
+                                        <p className="text-[9px] font-black uppercase tracking-widest text-slate-500 mb-0.5">Vehicle</p>
+                                        <p className="text-white font-bold text-sm uppercase">{ride.driver.vehicleDetails?.model || ride.vehicleType}</p>
                                     </div>
                                 </div>
                             </div>
                         </div>
 
-                        {/* Route Vectors */}
-                        <div className="space-y-10">
-                            <div className="flex items-center gap-4">
-                                <div className="w-2 h-8 bg-indigo-600 rounded-full"></div>
-                                <h3 className="text-2xl font-black text-slate-900 tracking-tighter uppercase">Route Telemetry</h3>
-                            </div>
-
-                            <div className="relative bg-[#020617] rounded-[3rem] p-10 md:p-16 border-none shadow-3xl flex flex-col gap-12 group overflow-hidden">
-                                <div className="absolute inset-0 bg-[url('https://www.transparenttextures.com/patterns/carbon-fibre.png')] opacity-10 mix-blend-overlay"></div>
-                                <div className="absolute top-0 right-0 w-64 h-64 bg-primary-600/10 rounded-full blur-[100px]"></div>
-
-                                <div className="flex items-start gap-8 relative z-10 group/point">
-                                    <div className="w-16 h-16 rounded-[1.5rem] bg-white text-slate-900 flex items-center justify-center shrink-0 shadow-2xl ring-4 ring-white/10 group-hover/point:scale-110 transition-transform">
-                                        <Target className="w-8 h-8" />
-                                    </div>
-                                    <div className="py-2">
-                                        <p className="text-[10px] font-black uppercase tracking-[0.3em] text-slate-500 mb-2">Origin Beacon</p>
-                                        <p className="font-black text-2xl text-white tracking-tight leading-tight">{ride.origin.name}</p>
-                                    </div>
+                        <div className="relative group">
+                            <div className="absolute inset-0 bg-primary-600 rounded-[3rem] blur-3xl opacity-20 group-hover:opacity-30 transition-opacity"></div>
+                            <div className="relative bg-white/5 backdrop-blur-3xl border border-white/10 p-10 rounded-[3rem] flex flex-col items-center justify-center shadow-3xl min-w-[240px]">
+                                <span className="text-[9px] font-black uppercase tracking-[0.3em] text-primary-400 mb-2">Sync Access Fee</span>
+                                <div className="flex items-start">
+                                    <span className="text-2xl font-black text-primary-500 mt-2 mr-1">₹</span>
+                                    <span className="text-7xl font-black text-white tracking-tighter leading-none">{ride.costPerSeat.toFixed(0)}</span>
                                 </div>
-
-                                <div className="absolute left-[3.8rem] md:left-[5.8rem] top-32 bottom-32 w-1 bg-white/5 rounded-none z-0">
-                                    <div className="w-full h-1/2 bg-gradient-to-b from-primary-500 to-indigo-500 animate-slide-up opacity-50 shadow-[0_0_20px_rgba(79,70,229,0.5)]"></div>
-                                </div>
-
-                                <div className="flex items-start gap-8 relative z-10 group/point pt-4">
-                                    <div className="w-16 h-16 rounded-[1.5rem] bg-primary-600 text-white flex items-center justify-center shrink-0 shadow-2xl shadow-primary-600/30 ring-4 ring-primary-500/20 group-hover/point:scale-110 transition-transform">
-                                        <Navigation className="w-8 h-8 transform rotate-45" />
-                                    </div>
-                                    <div className="py-2">
-                                        <p className="text-[10px] font-black uppercase tracking-[0.3em] text-primary-400 mb-2">Target Destination Vector</p>
-                                        <p className="font-black text-2xl text-white tracking-tight leading-tight italic uppercase">{ride.destination.name}</p>
-                                    </div>
-                                </div>
+                                <span className="mt-4 text-[10px] font-bold text-slate-500 uppercase tracking-widest">per peer unit</span>
                             </div>
                         </div>
-                    </div>
-
-                    {/* Protocol Panel (Right side) */}
-                    <div className="lg:col-span-5 space-y-12 relative z-10">
-
-                        {/* Economy Logic */}
-                        <div className="glass-panel !bg-white/60 p-10 rounded-[3rem] border-white/80 shadow-2xl relative overflow-hidden backdrop-blur-xl">
-                            <h3 className="font-black text-slate-900 text-xl border-b border-slate-100 pb-6 mb-10 flex items-center gap-4 relative z-10">
-                                <div className="bg-primary-50 p-3 rounded-2xl text-primary-600 shadow-sm"><Calculator className="w-6 h-6" /></div> 
-                                <span className="uppercase tracking-[0.2em] text-xs">Platform Economics</span>
-                            </h3>
-
-                            <div className="space-y-6 relative z-10">
-                                <div className="flex justify-between items-center group">
-                                    <span className="font-black text-[10px] uppercase tracking-widest text-slate-400 group-hover:text-slate-900 transition-colors">Path Distance</span>
-                                    <span className="font-black text-sm bg-white px-4 py-2 rounded-xl shadow-sm border border-slate-100 uppercase tracking-tighter">{ride.distanceKm.toFixed(1)} Unit-KM</span>
-                                </div>
-                                <div className="flex justify-between items-center group">
-                                    <div className="flex flex-col">
-                                        <span className="font-black text-[10px] uppercase tracking-widest text-slate-400 group-hover:text-slate-900 transition-colors">Fuel Calibration</span>
-                                        <span className="text-[9px] font-bold tracking-widest text-slate-400 uppercase mt-1">Split: {totalCapacity} Units</span>
-                                    </div>
-                                    <span className="font-black text-xl text-slate-900">₹{singleFuelShare.toFixed(2)}</span>
-                                </div>
-                                <div className="flex justify-between items-center group">
-                                    <span className="font-black text-[10px] uppercase tracking-widest text-slate-400 group-hover:text-slate-900 transition-colors">Network Access Fee</span>
-                                    <span className="font-black text-sm text-slate-900">₹{ride.riderFee?.toFixed(2) || '0.00'}</span>
-                                </div>
-                            </div>
-
-                            <div className="mt-12 pt-10 border-t border-slate-100 flex justify-between items-end relative z-10">
-                                <div className="flex flex-col">
-                                    <span className="text-slate-400 font-black uppercase tracking-[0.3em] text-[10px] mb-2 leading-none">Mitigated Cost</span>
-                                    <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest italic leading-none">Final Settlement</span>
-                                </div>
-                                <span className="font-black text-primary-600 text-6xl tracking-tighter shadow-primary-500/10">₹{ride.costPerSeat.toFixed(0)}</span>
-                            </div>
-
-                            <div className="mt-12 bg-[#020617] p-8 rounded-[2rem] flex items-start gap-4 relative z-10 shadow-2xl overflow-hidden group">
-                                <div className="absolute inset-0 bg-primary-600/5 group-hover:bg-primary-600/10 transition-colors"></div>
-                                <Info className="w-6 h-6 text-primary-400 shrink-0 mt-0.5 animate-pulse" />
-                                <p className="text-[9px] font-black text-slate-400 leading-relaxed text-left uppercase tracking-[0.2em]">
-                                    Mitron Node Protocol: We catalyze peer synchronization. Drivers operate under zero-profit mandate, splitting direct energy costs exclusively.
-                                </p>
-                            </div>
-                        </div>
-
-                        {/* Synchronization Controls */}
-                        <div className="bg-[#020617] p-10 rounded-[4rem] shadow-3xl border-none relative overflow-hidden group">
-                            <div className="absolute inset-0 bg-[url('https://www.transparenttextures.com/patterns/carbon-fibre.png')] opacity-10 mix-blend-overlay"></div>
-                            <div className="absolute top-0 right-0 w-64 h-64 bg-primary-600/10 rounded-full blur-[80px]"></div>
-
-                            <div className="flex justify-between items-center text-white mb-10 relative z-10">
-                                <span className="font-black uppercase tracking-[0.3em] text-[10px] text-slate-500">Node Capacity</span>
-                                <div className="flex items-center gap-3 bg-white/5 backdrop-blur-3xl px-5 py-2 rounded-2xl text-xs font-black text-emerald-400 border border-white/5">
-                                    <span className="w-2.5 h-2.5 rounded-full bg-emerald-500 animate-ping"></span> {ride.availableSeats} UNITS OPEN
-                                </div>
-                            </div>
-
-                            <div className="mb-12 relative z-10">
-                                <label className="block font-black text-slate-400 text-[10px] uppercase tracking-[0.3em] mb-4 ml-1">Allocate Sync Units:</label>
-                                <div className="relative group/sel">
-                                    <select
-                                        value={seats}
-                                        onChange={(e) => setSeats(Number(e.target.value))}
-                                        className="w-full bg-white/5 border border-white/10 text-white font-black text-2xl p-6 rounded-[2rem] appearance-none cursor-pointer focus:ring-4 focus:ring-primary-500/20 focus:outline-none transition-all group-hover/sel:bg-white/10">
-                                        {[...Array(ride.availableSeats)].map((_, i) => (
-                                            <option className="text-slate-900" key={i} value={i + 1}>{i + 1} PEER UNIT{(i + 1) > 1 ? 'S' : ''}</option>
-                                        ))}
-                                    </select>
-                                    <div className="absolute right-8 top-1/2 -translate-y-1/2 pointer-events-none group-hover/sel:scale-110 transition-transform">
-                                        <Users className="w-8 h-8 text-primary-500" />
-                                    </div>
-                                </div>
-                            </div>
-
-                            <button
-                                onClick={handleBook}
-                                disabled={bookingLoading || ride.availableSeats === 0}
-                                className="w-full bg-primary-600 hover:bg-primary-500 disabled:bg-slate-800 text-white font-black py-8 rounded-[2.5rem] text-sm flex flex-col items-center justify-center gap-2 transition-all shadow-2xl shadow-primary-600/30 active:scale-95 disabled:active:scale-100 relative z-10 shine-effect uppercase tracking-[0.3em]">
-                                {bookingLoading ? (
-                                    <Zap className="h-8 w-8 animate-spin text-white" />
-                                ) : (
-                                    <>
-                                        <div className="flex items-center gap-4">
-                                            Initialize Synchronization <ChevronRight className="w-5 h-5" />
-                                        </div>
-                                        <span className="text-[10px] text-white/60 font-medium">SETTLEMENT: ₹{(seats * ride.costPerSeat).toFixed(0)}</span>
-                                    </>
-                                )}
-                            </button>
-                        </div>
-
                     </div>
                 </div>
             </div>
-            
-            {/* Global Warning Protocol */}
-            <div className="mt-16 text-center max-w-2xl mx-auto px-6 opacity-40 hover:opacity-100 transition-opacity">
-                <p className="text-[8px] font-black text-slate-500 uppercase tracking-[0.4em] leading-loose">
-                    Security Notice: All transmissions are end-to-end encrypted. Payment handlers operate under Razorpay Secure Protocol. Node identifiers are subject to system-wide audit for trust score maintenance. Ride Mitron reserves the right to terminate signal synchronization in case of protocol violation.
-                </p>
+
+            {/* Main Content Grid */}
+            <div className="max-w-7xl mx-auto px-6 -mt-20 relative z-20">
+                <div className="grid lg:grid-cols-12 gap-10 items-start">
+                    
+                    {/* Left Column: Details & Telemetry */}
+                    <div className="lg:col-span-8 space-y-10">
+                        {/* Driver Card */}
+                        <div className="glass-panel group !p-1 underline-none hover:shadow-primary-600/5 transition-all">
+                            <div className="bg-white/80 backdrop-blur-xl p-8 rounded-[2.5rem] border border-white/60 shadow-sm flex flex-col md:flex-row items-center gap-10">
+                                <div className="relative shrink-0">
+                                    <div className="w-24 h-24 rounded-[2rem] bg-slate-900 flex items-center justify-center text-white text-4xl font-black shadow-2xl relative z-10 group-hover:scale-105 transition-transform">
+                                        {ride.driver.name.charAt(0)}
+                                    </div>
+                                    <div className="absolute -bottom-1 -right-1 w-9 h-9 bg-emerald-500 border-4 border-white rounded-full z-20 flex items-center justify-center shadow-lg">
+                                        <ShieldCheck className="w-4 h-4 text-white" />
+                                    </div>
+                                </div>
+                                
+                                <div className="flex-1 text-center md:text-left">
+                                    <div className="flex flex-col md:flex-row md:items-center gap-4 mb-4">
+                                        <h2 className="text-3xl font-black text-slate-900 tracking-tight">{ride.driver.name}</h2>
+                                        <div className="flex items-center justify-center gap-2 bg-amber-50 text-amber-700 px-4 py-1 rounded-full text-[10px] font-black uppercase tracking-widest border border-amber-100 italic">
+                                            {ride.driver.rating?.toFixed(1) || '5.0'} Trust <Zap className="w-3 h-3 fill-amber-500" />
+                                        </div>
+                                        {ride.driver.stars > 0 && (
+                                            <div className="flex items-center gap-1 bg-indigo-50 text-indigo-700 px-4 py-1 rounded-full text-[10px] font-black">
+                                                {[...Array(ride.driver.stars)].map((_, i) => (
+                                                    <Zap key={i} className="w-3 h-3 fill-indigo-500" />
+                                                ))}
+                                                <span className="ml-1 uppercase tracking-widest">{ride.driver.totalRidesGiven >= 1000 ? 'LEGEND' : 'ELITE'} VETERAN</span>
+                                            </div>
+                                        )}
+                                    </div>
+                                    <p className="text-slate-500 font-bold mb-6 text-sm">Seasoned operator on the Mitron Grid with {ride.driver.totalRidesGiven || 0} successful syncs.</p>
+                                    <div className="flex flex-wrap items-center justify-center md:justify-start gap-3">
+                                        <div className="bg-slate-100 text-slate-900 px-5 py-2 rounded-2xl text-[9px] font-black uppercase tracking-widest flex items-center gap-2">
+                                            <CarFront className="w-3.5 h-3.5" /> {ride.driver.vehicleDetails?.model || ride.vehicleType} CLASS ASSET
+                                        </div>
+                                        <div className="bg-indigo-50 text-indigo-600 px-5 py-2 rounded-2xl text-[9px] font-black uppercase tracking-widest flex items-center gap-2 border border-indigo-100">
+                                            <Users className="w-3.5 h-3.5" /> {ride.totalSeats} CAPACITY
+                                        </div>
+                                        <div className={`px-5 py-2 rounded-2xl text-[9px] font-black uppercase tracking-widest flex items-center gap-2 border ${(ride.driver.phoneNumber || '').includes('HIDDEN') ? 'bg-amber-50 text-amber-600 border-amber-100' : 'bg-emerald-50 text-emerald-600 border-emerald-100'}`}>
+                                            <Phone className="w-3.5 h-3.5" /> {ride.driver.phoneNumber}
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        {/* Route Telemetry */}
+                        <div className="glass-panel !p-10 !rounded-[3rem] space-y-12">
+                            <div className="flex items-center gap-3">
+                                <div className="w-1.5 h-1.5 rounded-full bg-primary-600 animate-ping"></div>
+                                <h3 className="text-xs font-black uppercase tracking-[0.4em] text-slate-500">Node Connectivity Path</h3>
+                            </div>
+
+                            <div className="relative flex flex-col gap-16 pl-4 md:pl-10">
+                                {/* Vertical Line */}
+                                <div className="absolute left-[2.25rem] md:left-[3.75rem] top-8 bottom-8 w-px bg-slate-200">
+                                    <div className="w-full h-1/2 bg-gradient-to-b from-primary-500 to-transparent animate-pulse"></div>
+                                </div>
+
+                                <div className="flex items-start gap-8 relative">
+                                    <div className="w-10 h-10 md:w-14 md:h-14 rounded-2xl bg-white border border-slate-200 shadow-xl flex items-center justify-center z-10 shrink-0">
+                                        <MapPin className="w-5 h-5 md:w-6 md:h-6 text-slate-400" />
+                                    </div>
+                                    <div>
+                                        <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1.5">Origin Signal</p>
+                                        <p className="text-xl md:text-2xl font-black text-slate-900 tracking-tight leading-none uppercase">{ride.origin.name}</p>
+                                    </div>
+                                </div>
+
+                                <div className="flex items-start gap-8 relative">
+                                    <div className="w-10 h-10 md:w-14 md:h-14 rounded-2xl bg-primary-600 shadow-2xl shadow-primary-600/40 flex items-center justify-center z-10 shrink-0 border-4 border-white">
+                                        <Navigation className="w-5 h-5 md:w-6 md:h-6 text-white transform rotate-45" />
+                                    </div>
+                                    <div>
+                                        <p className="text-[10px] font-black text-primary-500 uppercase tracking-widest mb-1.5">Convergence Point</p>
+                                        <p className="text-xl md:text-2xl font-black text-slate-900 tracking-tight leading-none uppercase">{ride.destination.name}</p>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    {/* Right Column: Economics & Booking */}
+                    <div className="lg:col-span-4 space-y-10">
+                        
+                        {/* Economics Card */}
+                        <div className="glass-panel !bg-white p-8 rounded-[3rem] shadow-xl border border-white/20">
+                            <div className="flex items-center gap-4 mb-10 pb-6 border-b border-slate-50">
+                                <div className="bg-indigo-50 p-3 rounded-2xl text-indigo-600 shadow-sm"><Calculator className="w-5 h-5" /></div>
+                                <h3 className="text-xs font-black uppercase tracking-[0.2em] text-slate-900">Platform Economics</h3>
+                            </div>
+
+                            <div className="space-y-6">
+                                <div className="flex justify-between items-center text-xs font-bold uppercase tracking-widest text-slate-400">
+                                    <span>Base Energy Split</span>
+                                    <span className="text-slate-900 font-black">₹{singleFuelShare.toFixed(2)}</span>
+                                </div>
+                                <div className="flex justify-between items-center text-xs font-bold uppercase tracking-widest text-slate-400">
+                                    <span>Network Fee</span>
+                                    <span className="text-slate-900 font-black">₹{ride.riderFee?.toFixed(2) || '0.00'}</span>
+                                </div>
+                                <div className="pt-6 border-t border-slate-50 flex justify-between items-end">
+                                    <p className="text-[10px] font-black uppercase tracking-[0.3em] text-slate-400 leading-none mb-1">Total Unit Cost</p>
+                                    <p className="text-4xl font-black text-slate-900 leading-none tracking-tighter">₹{ride.costPerSeat.toFixed(0)}</p>
+                                </div>
+                            </div>
+
+                            <div className="mt-10 bg-slate-50 p-6 rounded-3xl space-y-4">
+                                <div className="flex gap-4">
+                                    <Info className="w-5 h-5 text-indigo-500 shrink-0 mt-0.5" />
+                                    <div className="space-y-2">
+                                        <p className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-900">Sync Workflow</p>
+                                        <ol className="text-[9px] font-bold text-slate-500 uppercase tracking-widest list-decimal pl-4 space-y-2">
+                                            <li>Rider pays 3% platform fee to request sync.</li>
+                                            <li>Driver pays 1% platform fee to accept request.</li>
+                                            <li>Once both pay, contact details unlock & seats are reserved.</li>
+                                        </ol>
+                                    </div>
+                                </div>
+                                <div className="pt-4 border-t border-slate-200">
+                                    <p className="text-[8px] font-bold text-slate-400 leading-relaxed uppercase tracking-widest">
+                                        Zero-profit protocol activated. Energy costs are split purely among nodes to optimize regional mobility. No surge mechanisms present.
+                                    </p>
+                                </div>
+                            </div>
+                        </div>
+
+                        {/* Booking Card */}
+                        <div className="bg-[#020617] rounded-[3rem] p-10 shadow-3xl relative overflow-hidden group">
+                            <div className="absolute inset-0 bg-[url('https://www.transparenttextures.com/patterns/carbon-fibre.png')] opacity-10 mix-blend-overlay"></div>
+                            
+                            <div className="relative z-10 space-y-10">
+                                <div className="flex justify-between items-center">
+                                    <h3 className="text-[9px] font-black uppercase tracking-[0.3em] text-slate-500">Unit Allocation</h3>
+                                    <div className="bg-white/5 border border-white/10 px-4 py-1.5 rounded-full text-[9px] font-black text-emerald-400 uppercase tracking-widest">
+                                        {ride.availableSeats} Units Open
+                                    </div>
+                                </div>
+
+                                <div className="space-y-4">
+                                    <label className="block text-[8px] font-black uppercase tracking-[0.4em] text-slate-500 ml-1">Reserve peer capacity:</label>
+                                    <div className="relative group/select">
+                                        <select
+                                            value={seats}
+                                            onChange={(e) => setSeats(Number(e.target.value))}
+                                            className="w-full bg-white/5 border border-white/10 text-white font-black text-xl p-6 rounded-[2rem] appearance-none cursor-pointer focus:ring-4 focus:ring-primary-500/20 focus:outline-none transition-all hover:bg-white/10"
+                                        >
+                                            {[...Array(ride.availableSeats)].map((_, i) => (
+                                                <option className="text-slate-900" key={i} value={i + 1}>{i + 1} PEER UNIT{(i + 1) > 1 ? 'S' : ''}</option>
+                                            ))}
+                                        </select>
+                                        <Users className="absolute right-8 top-1/2 -translate-y-1/2 w-6 h-6 text-primary-500 pointer-events-none group-hover/select:scale-110 transition-transform" />
+                                    </div>
+                                </div>
+
+                                <div className="pt-6">
+                                    {isDriver ? (
+                                        <div className="w-full bg-slate-800/50 border border-white/5 rounded-[2rem] py-8 text-center">
+                                            <p className="text-xs font-black uppercase tracking-widest text-slate-500 mb-1">Host Protocol Active</p>
+                                            <p className="text-[10px] font-bold text-slate-600 uppercase tracking-widest">You are the operator of this journey</p>
+                                        </div>
+                                    ) : (
+                                        <button
+                                            onClick={handleBook}
+                                            disabled={bookingLoading || ride.availableSeats === 0}
+                                            className="group relative w-full bg-primary-600 hover:bg-primary-500 disabled:bg-slate-800 text-white rounded-[2rem] py-8 transition-all active:scale-95 shadow-2xl shadow-primary-600/30 overflow-hidden"
+                                        >
+                                            {bookingLoading ? (
+                                                <Zap className="h-6 w-6 animate-spin mx-auto" />
+                                            ) : (
+                                                <div className="relative z-10 flex flex-col items-center">
+                                                    <div className="flex items-center gap-3 font-black uppercase tracking-[0.2em] text-[11px] mb-1">
+                                                        UNLOCK CONTACT DETAILS <ChevronRight className="w-5 h-5 group-hover:translate-x-1 transition-transform" />
+                                                    </div>
+                                                    <span className="text-[10px] font-bold text-white/50 uppercase tracking-widest flex items-center gap-1.5">
+                                                        <CreditCard className="w-3 h-3" /> Settlement: ₹{(seats * ride.costPerSeat).toFixed(0)}
+                                                    </span>
+                                                </div>
+                                            )}
+                                            <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/10 to-transparent -translate-x-full group-hover:animate-shimmer pointer-events-none"></div>
+                                        </button>
+                                    )}
+                                </div>
+                            </div>
+                        </div>
+
+                        {/* Security Protocol */}
+                        <div className="text-center px-4 space-y-4 opacity-50 hover:opacity-100 transition-opacity">
+                            <div className="flex items-center justify-center gap-2 mb-2">
+                                <ShieldCheck className="w-3.5 h-3.5 text-emerald-600" />
+                                <span className="text-[8px] font-black uppercase tracking-[0.3em] text-slate-500">Secure Protocol Activated</span>
+                            </div>
+                            <p className="text-[7px] font-bold text-slate-400 uppercase tracking-widest leading-loose max-w-xs mx-auto">
+                                All node sync requests undergo end-to-end encryption. Operator identities are verified via system-wide reputation audits.
+                            </p>
+                        </div>
+                    </div>
+                </div>
             </div>
         </div>
     );

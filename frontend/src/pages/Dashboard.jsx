@@ -1,15 +1,36 @@
 import { useState, useEffect, useCallback, useMemo } from 'react';
 import { useAuth } from '../context/AuthContext';
-import { bookingAPI, paymentAPI } from '../api/apiRoutes';
+import { bookingAPI, paymentAPI, rideAPI } from '../api/apiRoutes';
 import axiosConfig from '../api/axiosConfig';
 import Loader from '../components/Loader';
-import { Settings, CheckCircle, XCircle, Navigation, MapPin, Calendar, Car, Fuel, Zap, Route, Users, Globe, UserCircle } from 'lucide-react';
+import { Settings, CheckCircle, XCircle, Navigation, Calendar, Car, Fuel, Zap, Route, Users, Globe, UserCircle, History, Activity, Sparkles, ShieldCheck, MapPin, Search, ArrowRight, Clock, Star, Banknote } from 'lucide-react';
 import { Link } from 'react-router-dom';
+
+const FeatureItem = ({ icon, title, desc, colorClass, delay }) => (
+    <div 
+        className="glass-panel group relative overflow-hidden p-6 sm:p-8 border border-white/5 bg-white/[0.02] hover:bg-white/[0.05] transition-all duration-700 hover:-translate-y-3 flex flex-col items-start animate-slide-up"
+        style={{ animationDelay: `${delay}s` }}
+    >
+        <div className={`absolute -right-8 -top-8 w-32 h-32 blur-[60px] opacity-10 rounded-full transition-all duration-700 group-hover:opacity-30 ${colorClass}`}></div>
+        
+        <div className={`w-16 h-16 rounded-2xl flex items-center justify-center mb-10 relative z-10 shadow-2xl ${colorClass} bg-opacity-10 text-white group-hover:bg-opacity-100 transition-all duration-500`}>
+            {icon}
+        </div>
+        
+        <h3 className="text-xl font-black text-white mb-4 tracking-tighter uppercase relative z-10">{title}</h3>
+        <p className="text-sm text-slate-400 font-medium leading-relaxed relative z-10 flex-grow group-hover:text-slate-200 transition-colors">{desc}</p>
+        
+        <div className="mt-8 pt-8 border-t border-white/5 w-full flex items-center gap-2 text-[10px] font-black tracking-[0.3em] text-slate-500 group-hover:text-primary-400 transition-colors uppercase">
+            <ShieldCheck className="w-3 h-3" /> Secure Sync
+        </div>
+    </div>
+);
 
 export default function Dashboard() {
     const { user, login } = useAuth();
     const [requests, setRequests] = useState({ asPassenger: [], asDriver: [] });
     const [loading, setLoading] = useState(true);
+    const [viewMode, setViewMode] = useState('active'); // 'active' or 'history'
 
     // Profile update state
     const [isEditingProfile, setIsEditingProfile] = useState(false);
@@ -44,7 +65,6 @@ export default function Dashboard() {
                 return;
             }
 
-            // If ACCEPT, Driver pays platform fee
             const { data: orderData } = await paymentAPI.createOrder({ requestId: req._id });
 
             const options = {
@@ -87,6 +107,39 @@ export default function Dashboard() {
         }
     }, [user, fetchRequests]);
 
+    const handleCancelRide = async (rideId) => {
+        if (!window.confirm("Abort this entire journey stream?")) return;
+        try {
+            await rideAPI.cancelRide(rideId);
+            alert("Journey terminated.");
+            fetchRequests();
+        } catch (error) {
+            alert(error.response?.data?.message || "Failed to cancel ride");
+        }
+    };
+
+    const handleCancelRequest = async (requestId) => {
+        if (!window.confirm("Detach from this journey stream?")) return;
+        try {
+            await bookingAPI.cancelBooking(requestId);
+            alert("Sync request detached.");
+            fetchRequests();
+        } catch (error) {
+            alert(error.response?.data?.message || "Failed to cancel request");
+        }
+    };
+
+    const handleCompleteRide = async (rideId) => {
+        if (!window.confirm("Mark this ride as completed?")) return;
+        try {
+            await rideAPI.updateRideStatus(rideId, { status: 'COMPLETED' });
+            alert("Ride marked as completed!");
+            fetchRequests();
+        } catch (error) {
+            alert(error.response?.data?.message || "Failed to complete ride");
+        }
+    };
+
     const handleProfileSubmit = useCallback(async (e) => {
         e.preventDefault();
         try {
@@ -107,241 +160,290 @@ export default function Dashboard() {
     }, [profileData, login]);
 
     const passengerList = useMemo(() => {
-        if (requests.asPassenger.length === 0) {
+        const filtered = requests.asPassenger.filter(req => {
+            const isFinished = req.ride?.status === 'COMPLETED' || req.ride?.status === 'CANCELLED' || req.status === 'REJECTED';
+            return viewMode === 'history' ? isFinished : !isFinished;
+        });
+
+        if (filtered.length === 0) {
             return (
-                <div className="glass-panel flex flex-col items-center justify-center text-center py-20 border-dashed border-2 bg-transparent">
-                    <Route className="w-12 h-12 text-slate-200 mb-5" />
-                    <p className="text-slate-900 font-black text-lg">No incoming ride streams</p>
-                    <p className="text-slate-400 text-xs font-bold uppercase tracking-widest mt-2">Initialize a search flow to participate</p>
+                <div className="glass-panel flex flex-col items-center justify-center text-center py-20 border-dashed border-2 border-white/10">
+                    <Route className="w-12 h-12 text-slate-700 mb-5" />
+                    <p className="text-white font-bold text-lg uppercase tracking-widest">No Active Journeys</p>
                 </div>
             );
         }
-        return requests.asPassenger.map((req, index) => (
-            <div key={req._id} className="glass-panel group relative overflow-hidden active:scale-95 transition-transform will-change-transform animate-slide-up" style={{ animationDelay: `${index * 0.05}s` }}>
-                <div className={`absolute top-0 right-0 w-24 h-24 bg-gradient-to-br opacity-10 blur-xl ${req.status === 'ACCEPTED' ? 'from-emerald-500' : 'from-yellow-500'}`}></div>
+        return filtered.map((req, index) => (
+            <div key={req._id} className="glass-panel group relative overflow-hidden animate-slide-up hover:bg-white/[0.05]" style={{ animationDelay: `${index * 0.1}s` }}>
                 <div className="flex justify-between items-start mb-6">
-                    <div>
-                        <div className="flex items-center gap-2 mb-4">
-                            <span className={`px-4 py-1.5 text-[10px] font-black uppercase tracking-widest rounded-full ${req.status === 'ACCEPTED' ? 'bg-emerald-100 text-emerald-700 shadow-sm shadow-emerald-500/10' : req.status === 'PENDING' ? 'bg-yellow-100 text-yellow-700 shadow-sm shadow-yellow-500/10' : 'bg-red-100 text-red-700 shadow-sm shadow-red-500/10'}`}>
-                                {req.status}
-                            </span>
-                        </div>
-                        <div className="flex items-center gap-4 text-slate-900 font-black text-2xl tracking-tighter">
-                            {req.ride?.origin?.name} 
-                            <Navigation className="w-4 h-4 text-primary-500 transform rotate-45" /> 
-                            {req.ride?.destination?.name}
+                    <div className="space-y-4">
+                        <span className={`px-4 py-1 rounded-full text-[10px] font-black uppercase tracking-widest ${req.status === 'ACCEPTED' ? 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/20' : 'bg-amber-500/10 text-amber-400 border border-amber-500/20'}`}>
+                            {req.ride?.status === 'COMPLETED' ? 'COMPLETED' : req.status}
+                        </span>
+                        <div className="text-white font-black text-2xl tracking-tighter flex items-center gap-3">
+                            {req.ride?.origin?.name?.split(',')[0]}
+                            <Navigation className="w-5 h-5 text-primary-500 rotate-45" />
+                            {req.ride?.destination?.name?.split(',')[0]}
                         </div>
                     </div>
                     <div className="text-right">
-                        <span className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">Cost Allocation</span>
-                        <span className="text-3xl font-black text-slate-900 tracking-tighter">₹{req.totalCost.toFixed(0)}</span>
+                        <p className="text-[10px] font-black text-slate-500 uppercase tracking-widest mb-1">Fee</p>
+                        <p className="text-3xl font-black text-white tracking-tighter">₹{req.totalCost.toFixed(0)}</p>
                     </div>
                 </div>
-                <div className="flex flex-wrap items-center gap-6 text-[11px] font-bold text-slate-500 uppercase tracking-[0.15em] pt-6 border-t border-slate-100">
-                    <span className="flex items-center gap-2"><Calendar className="w-4 h-4 text-slate-400" /> {new Date(req.createdAt).toLocaleDateString()}</span>
-                    <span className="flex items-center gap-2 text-primary-600 bg-primary-50 px-3 py-1 rounded-full"><Users className="w-4 h-4" /> {req.seatsRequested} Seat Allocation</span>
+                <div className="flex items-center justify-between pt-6 border-t border-white/5">
+                    <div className="flex items-center gap-5 text-[10px] font-bold text-slate-500 uppercase tracking-widest">
+                        <span className="flex items-center gap-2"><Calendar className="w-4 h-4" /> {new Date(req.createdAt).toLocaleDateString()}</span>
+                        <span className="flex items-center gap-2 text-primary-400"><Users className="w-4 h-4" /> {req.seatsRequested} Seats</span>
+                    </div>
+                    {req.status !== 'REJECTED' && req.status !== 'CANCELLED' && req.ride?.status === 'ACTIVE' && (
+                        <button onClick={() => handleCancelRequest(req._id)} className="text-[10px] font-black text-red-500 hover:text-red-400 uppercase tracking-widest transition-colors">
+                            Cancel Request
+                        </button>
+                    )}
                 </div>
             </div>
         ));
-    }, [requests.asPassenger]);
+    }, [requests.asPassenger, viewMode]);
 
     const driverList = useMemo(() => {
-        if (requests.asDriver.length === 0) {
+        const filtered = requests.asDriver.filter(req => {
+            const isFinished = req.ride?.status === 'COMPLETED' || req.ride?.status === 'CANCELLED' || req.status === 'REJECTED';
+            return viewMode === 'history' ? isFinished : !isFinished;
+        });
+
+        if (filtered.length === 0) {
             return (
-                <div className="glass-panel flex flex-col items-center justify-center text-center py-20 border-dashed border-2 bg-transparent">
-                    <Users className="w-12 h-12 text-slate-200 mb-5" />
-                    <p className="text-slate-900 font-black text-lg">No external node requests</p>
-                    <p className="text-slate-400 text-xs font-bold uppercase tracking-widest mt-2">Visible signals will materialize here</p>
+                <div className="glass-panel flex flex-col items-center justify-center text-center py-20 border-dashed border-2 border-white/10">
+                    <Users className="w-12 h-12 text-slate-700 mb-5" />
+                    <p className="text-white font-bold text-lg uppercase tracking-widest">No Incoming Signals</p>
                 </div>
             );
         }
-        return requests.asDriver.map((req, index) => (
-            <div key={req._id} className="glass-panel hover:border-indigo-200 transition-colors will-change-transform animate-slide-up" style={{ animationDelay: `${index * 0.05}s` }}>
-                <div className="flex justify-between items-center mb-8 pb-8 border-b border-slate-100">
+        return filtered.map((req, index) => (
+            <div key={req._id} className="glass-panel animate-slide-up hover:bg-white/[0.05]" style={{ animationDelay: `${index * 0.1}s` }}>
+                <div className="flex justify-between items-center mb-8 pb-8 border-b border-white/5">
                     <div className="flex items-center gap-4">
-                        <div className="w-14 h-14 rounded-2xl bg-indigo-100 flex items-center justify-center text-indigo-600 font-black text-xl shadow-inner shadow-indigo-600/5">
+                        <div className="w-16 h-16 rounded-2xl bg-primary-500/10 flex items-center justify-center text-primary-400 font-black text-2xl border border-primary-500/20">
                             {req.passenger?.name?.charAt(0)}
                         </div>
                         <div>
-                            <p className="font-black text-slate-900 text-xl tracking-tight leading-none mb-1">{req.passenger?.name}</p>
-                            <div className="flex items-center gap-1.5">
-                                <Zap className="w-3 h-3 text-amber-500 fill-amber-500" />
-                                <span className="text-[10px] font-black uppercase tracking-widest text-slate-400">{req.passenger?.rating || '5.0'} TRUST SCORE</span>
+                            <p className="font-black text-white text-xl tracking-tight leading-none mb-2">{req.passenger?.name}</p>
+                            <div className="flex items-center gap-2 text-[10px] font-black text-slate-500 uppercase tracking-[0.2em]">
+                                <Star className="w-3 h-3 text-amber-500 fill-amber-500" />
+                                <span>{req.passenger?.rating || '5.0'} Trust</span>
                             </div>
                         </div>
                     </div>
                     <div className="text-right">
-                        <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1 leading-none">Resource Lock</p>
-                        <p className="text-xl font-black text-slate-900 tracking-tighter mb-1">{req.seatsRequested} Unit(s)</p>
-                        <p className="text-[10px] font-black text-indigo-600 bg-indigo-50 px-2 py-0.5 rounded-full inline-block">₹{req.totalCost.toFixed(0)} Pool</p>
+                        <p className="text-[10px] font-black text-slate-500 uppercase tracking-widest mb-1">Units</p>
+                        <p className="text-2xl font-black text-white tracking-tighter">{req.seatsRequested}</p>
                     </div>
                 </div>
 
                 {req.status === 'PENDING' ? (
-                    <div className="flex gap-4">
-                        <button onClick={() => handleResponse(req, 'ACCEPT')} className="btn-primary group !py-3.5 !rounded-2xl flex-1 text-xs">
-                            <span className="flex items-center justify-center gap-2">
-                                <CheckCircle className="w-4 h-4 group-hover:scale-110 transition-transform" /> 
-                                AUTHORIZE ACCESS
-                            </span>
+                    <div className="grid grid-cols-2 gap-4">
+                        <button onClick={() => handleResponse(req, 'ACCEPT')} className="btn-primary !py-4 text-xs font-black tracking-[0.2em] uppercase">
+                            Accept Request
                         </button>
-                        <button onClick={() => handleResponse(req, 'REJECT')} className="btn-secondary !w-auto !px-6 !py-3.5 !rounded-2xl group border-red-100 hover:bg-red-50 hover:border-red-200">
-                            <XCircle className="w-5 h-5 text-red-500 group-hover:scale-110 transition-transform" />
+                        <button onClick={() => handleResponse(req, 'REJECT')} className="btn-secondary !py-4 text-xs font-black tracking-[0.2em] uppercase hover:text-red-500 hover:border-red-500/50">
+                            Reject
                         </button>
                     </div>
                 ) : (
-                    <div className={`py-4 px-3 text-[10px] font-black rounded-2xl text-center uppercase tracking-[0.2em] shadow-inner ${req.status === 'ACCEPTED' ? 'bg-emerald-50 text-emerald-700 border border-emerald-100 shadow-emerald-500/5' : 'bg-slate-50 text-slate-500 border border-slate-200 shadow-slate-500/5'}`}>
-                        STATUS: {req.status}
+                    <div className="space-y-4">
+                        <div className={`py-4 rounded-xl text-[10px] font-black text-center uppercase tracking-[0.3em] border ${req.status === 'ACCEPTED' ? 'bg-emerald-500/5 text-emerald-400 border-emerald-500/20' : 'bg-slate-500/5 text-slate-500 border-white/5'}`}>
+                            {req.status}
+                        </div>
+                        {req.status === 'ACCEPTED' && req.ride?.status === 'ACTIVE' && (
+                            <div className="flex gap-3">
+                                <button onClick={() => handleCompleteRide(req.ride._id)} className="flex-1 py-3 bg-primary-600 hover:bg-primary-500 text-white rounded-xl text-[10px] font-black uppercase tracking-widest transition-all">
+                                    Complete
+                                </button>
+                                <button onClick={() => handleCancelRide(req.ride._id)} className="flex-1 py-3 bg-red-500/10 hover:bg-red-500/20 text-red-500 border border-red-500/20 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all">
+                                    Abort
+                                </button>
+                            </div>
+                        )}
+                        {req.status === 'ACCEPTED' && (
+                           <div className="flex items-center justify-between p-4 bg-white/5 rounded-2xl border border-white/5">
+                                <div className="flex items-center gap-3">
+                                    <div className="p-2 bg-primary-500/20 rounded-lg text-primary-400"><Navigation className="w-4 h-4" /></div>
+                                    <p className="text-sm font-bold text-white tracking-tight">{req.passenger?.phoneNumber}</p>
+                                </div>
+                                <a href={`tel:${req.passenger?.phoneNumber}`} className="p-2 bg-primary-600 hover:bg-primary-500 rounded-lg transition-colors text-white">
+                                    <Zap className="w-4 h-4 fill-white" />
+                                </a>
+                           </div>
+                        )}
                     </div>
                 )}
             </div>
         ));
-    }, [requests.asDriver, handleResponse]);
+    }, [requests.asDriver, viewMode, handleResponse]);
 
     if (loading) return <Loader />;
 
     return (
-        <div className="max-w-7xl mx-auto animate-fade-in relative z-10 w-full mb-20 px-4 mt-6">
+        <div className="w-full relative min-h-screen mesh-bg selection:bg-primary-500/30">
+            {/* HERO SECTION */}
+            <div className="w-full relative min-h-screen flex items-center justify-center overflow-hidden py-24 lg:py-0">
+                <div className="absolute inset-0 z-0">
+                    <div className="absolute inset-0 bg-[#020617] opacity-60"></div>
+                    <img src="/hero-bg.jpg" alt="Background" className="w-full h-full object-cover mix-blend-overlay brightness-50" />
+                    
+                    {/* Animated Grid Lines */}
+                    <div className="absolute inset-0 bg-[linear-gradient(to_right,#ffffff05_1px,transparent_1px),linear-gradient(to_bottom,#ffffff05_1px,transparent_1px)] bg-[size:40px_40px] [mask-image:radial-gradient(ellipse_60%_50%_at_50%_0%,#000_70%,transparent_100%)]"></div>
+                </div>
 
-            {/* Futuristic Dashboard Header */}
-            <div className="glass-panel mb-10 overflow-hidden relative group">
-                <div className="absolute top-0 right-0 w-64 h-64 bg-primary-500/10 rounded-full blur-[80px] -mr-32 -mt-32"></div>
-                <div className="relative z-10 flex flex-col md:flex-row md:items-center justify-between gap-8">
-                    <div className="flex items-center gap-6">
-                        <div className="relative">
-                            <div className="w-20 h-20 rounded-[2.5rem] bg-gradient-to-br from-primary-600 to-indigo-600 flex items-center justify-center text-white shadow-2xl shadow-primary-600/30">
-                                <span className="text-3xl font-black">{user?.name?.charAt(0).toUpperCase()}</span>
-                            </div>
-                            <div className="absolute -bottom-1 -right-1 w-7 h-7 bg-emerald-500 border-4 border-white rounded-full"></div>
-                        </div>
-                        <div>
-                            <div className="flex items-center gap-2 mb-1">
-                                <Globe className="w-3.5 h-3.5 text-primary-500 animate-spin-slow" />
-                                <span className="text-[10px] font-black uppercase tracking-[0.3em] text-slate-400">Network Status: Online</span>
-                            </div>
-                            <h1 className="text-4xl font-black text-slate-900 tracking-tighter">Systems Check, {user?.name?.split(' ')[0]}</h1>
-                            <p className="text-slate-500 font-bold mt-1">Monitoring your node activity across the Mitron grid.</p>
-                        </div>
+                <div className="max-w-7xl mx-auto px-4 sm:px-6 relative z-10 text-center animate-fade-in">
+                    <div className="inline-flex items-center gap-2 bg-primary-500/10 border border-primary-500/20 px-4 sm:px-6 py-2 rounded-full mb-6 sm:mb-10">
+                        <div className="w-1.5 h-1.5 rounded-full bg-primary-500 animate-ping"></div>
+                        <span className="text-[9px] sm:text-[10px] font-black tracking-[0.4em] uppercase text-primary-400">System Online</span>
                     </div>
 
-                    <div className="flex items-center gap-4">
-                        <Link to="/post-ride" className="btn-primary !w-auto !py-4 px-8 text-xs tracking-widest uppercase">
-                            Dispatch Ride
+                    <h1 className="text-5xl sm:text-7xl md:text-8xl lg:text-[9rem] font-black tracking-[-0.05em] mb-6 sm:mb-8 leading-[0.9] uppercase italic">
+                        <span className="text-white">Ride</span><br />
+                        <span className="text-transparent bg-clip-text bg-gradient-to-r from-primary-400 via-indigo-400 to-fuchsia-400 animate-gradient-x not-italic">Mitron.</span>
+                    </h1>
+                    
+                    <div className="bg-white/5 backdrop-blur-md border border-white/10 px-6 py-3 rounded-2xl inline-block mb-10">
+                        <p className="text-sm sm:text-base font-black text-slate-300 uppercase tracking-[0.4em]">Redefining Urban Mobility</p>
+                    </div>
+
+                    <p className="text-base sm:text-lg md:text-xl text-slate-400 font-medium max-w-2xl mx-auto mb-10 sm:mb-16 leading-relaxed px-4">
+                        Welcome, <span className="text-white font-black">{user?.name}</span>. Experience the next generation of carpooling with precision and style.
+                    </p>
+
+                    <div className="flex flex-col xs:flex-row items-center justify-center gap-4 sm:gap-6 px-4">
+                        <Link to="/search-ride" className="btn-primary !w-full xs:!w-auto !px-10 sm:!px-12 !py-5 sm:!py-6 text-[10px] sm:text-xs tracking-[0.3em] uppercase group">
+                            <span className="flex items-center justify-center gap-3">Find a Ride <ArrowRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" /></span>
                         </Link>
-                        <button 
-                            onClick={() => {
-                                const token = localStorage.getItem('token');
-                                localStorage.clear();
-                                sessionStorage.clear();
-                                if(token) localStorage.setItem('token', token);
-                                window.location.reload();
-                            }} 
-                            className="btn-secondary !w-auto !py-4 px-6 text-amber-600 border-amber-100 hover:bg-amber-50"
-                            title="Clear Cache & Optimize"
-                        >
-                            <Zap className="w-5 h-5" />
-                        </button>
-                        <button onClick={() => setIsEditingProfile(!isEditingProfile)} className="btn-secondary !w-auto !py-4 px-6">
-                            <Settings className={`w-5 h-5 transition-transform duration-700 ${isEditingProfile ? 'rotate-180' : ''}`} />
-                        </button>
+                        <Link to="/post-ride" className="btn-secondary !w-full xs:!w-auto !px-10 sm:!px-12 !py-5 sm:!py-6 text-[10px] sm:text-xs tracking-[0.3em] uppercase bg-white/5 border-white/10">
+                            Share a Ride
+                        </Link>
                     </div>
                 </div>
             </div>
 
-            {isEditingProfile && (
-                <div className="glass-panel mb-10 animate-slide-up bg-slate-50/50">
-                    <div className="flex items-center gap-4 mb-10 pb-6 border-b border-slate-200">
-                        <div className="bg-primary-100 p-3 rounded-2xl text-primary-600"><UserCircle className="w-6 h-6" /></div>
-                        <div>
-                            <h2 className="text-2xl font-black text-slate-900 tracking-tight">Identity & Asset Management</h2>
-                            <p className="text-slate-500 text-sm font-bold">Configure your broadcasting credentials</p>
+            {/* FEATURES SECTION */}
+            <div className="max-w-7xl mx-auto px-4 sm:px-6 py-20 sm:py-32">
+                <div className="mb-16 sm:mb-24 flex flex-col md:flex-row md:items-end justify-between gap-8 sm:gap-10">
+                    <div className="max-w-2xl">
+                        <span className="text-[9px] sm:text-[10px] font-black tracking-[0.4em] uppercase text-primary-500 mb-2 sm:mb-4 block">Platform Core</span>
+                        <h2 className="text-4xl sm:text-6xl md:text-7xl font-black text-white tracking-tighter uppercase leading-none">Why Ride<br className="hidden sm:block" /> With Mitron?</h2>
+                    </div>
+                    <p className="text-slate-500 font-medium text-base sm:text-lg lg:max-w-sm mb-2 opacity-80">Connecting destinations with verified local commuters.</p>
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-4 sm:gap-6">
+                    <FeatureItem icon={<Banknote />} title="Fair Split" desc="Smart cost allocation for every peer journey." colorClass="text-emerald-500" delay={0.1} />
+                    <FeatureItem icon={<Sparkles />} title="Precision" desc="Neural matching for perfect trip pairing." colorClass="text-indigo-500" delay={0.2} />
+                    <FeatureItem icon={<ShieldCheck />} title="Verified" desc="Secure identity validation for total trust." colorClass="text-blue-500" delay={0.3} />
+                    <FeatureItem icon={<Globe />} title="Impact" desc="Reduce carbon footprint with every ride." colorClass="text-cyan-500" delay={0.4} />
+                    <FeatureItem icon={<Clock />} title="Real-time" desc="Instant sync with live navigation signals." colorClass="text-fuchsia-500" delay={0.5} />
+                </div>
+            </div>
+
+            {/* CONTROL CENTER */}
+            <div className="max-w-7xl mx-auto px-4 sm:px-6 pb-24 sm:pb-48">
+                <div className="glass-panel mb-16 sm:mb-24 relative overflow-hidden group !p-6 sm:!p-10 lg:!p-12">
+                    <div className="absolute -right-20 -top-20 w-64 sm:w-96 h-64 sm:h-96 bg-primary-500/5 blur-[80px] sm:blur-[120px] rounded-full"></div>
+                    
+                    <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-8 sm:gap-12 relative z-10 text-left lg:text-left">
+                        <div className="space-y-4">
+                            <div className="flex items-center gap-3 text-primary-500">
+                                <Activity className="w-4 h-4 sm:w-5 h-5" />
+                                <span className="text-[9px] sm:text-[10px] font-black uppercase tracking-[0.4em]">Operations Center</span>
+                            </div>
+                            <h2 className="text-4xl sm:text-5xl font-black text-white tracking-tighter uppercase">Command Panel</h2>
+                            <p className="text-slate-400 font-medium text-base sm:text-lg max-w-lg">Manage journey trajectory and account credentials.</p>
+                        </div>
+
+                        <div className="flex flex-col xs:flex-row items-center gap-4 sm:gap-5">
+                            <button onClick={() => setIsEditingProfile(!isEditingProfile)} className="w-full xs:w-auto bg-white/10 hover:bg-white/20 text-white py-4 sm:py-6 px-8 sm:px-10 rounded-xl sm:rounded-2xl flex items-center justify-center gap-4 text-[10px] sm:text-[11px] font-black tracking-[0.3em] uppercase border border-white/5 transition-all">
+                                <Settings className="w-4 h-4 sm:w-5 h-5" /> Profile Settings
+                            </button>
+                            <button onClick={() => window.location.reload()} className="w-full xs:w-20 h-16 xs:h-20 rounded-xl sm:rounded-2xl bg-primary-600 hover:bg-primary-500 text-white flex items-center justify-center transition-all">
+                                <Zap className="w-6 h-6 sm:w-8 h-8 fill-white" />
+                            </button>
                         </div>
                     </div>
-
-                    <form onSubmit={handleProfileSubmit} className="space-y-10">
-                        <div className="grid md:grid-cols-2 gap-8">
-                            <div className="space-y-3">
-                                <label className="block text-xs font-black uppercase tracking-widest text-slate-500 ml-1">Universal ID Name</label>
-                                <input type="text" value={profileData.name} onChange={(e) => setProfileData({ ...profileData, name: e.target.value })} className="input-field" required />
-                            </div>
-
-                            <div className="flex items-center bg-white/40 backdrop-blur-md p-6 rounded-3xl border border-white/60 shadow-sm">
-                                <label className="flex items-center gap-6 cursor-pointer w-full group">
-                                    <div className={`w-14 h-14 rounded-2xl flex items-center justify-center transition-all duration-500 ${profileData.hasVehicle ? 'bg-primary-600 text-white shadow-lg shadow-primary-600/30' : 'bg-slate-200 text-slate-400'}`}>
-                                        {profileData.hasVehicle ? <Car className="w-7 h-7" /> : <XCircle className="w-7 h-7" />}
-                                    </div>
-                                    <input type="checkbox" checked={profileData.hasVehicle} onChange={(e) => setProfileData({ ...profileData, hasVehicle: e.target.checked })} className="hidden" />
-                                    <div>
-                                        <p className="font-black text-slate-900 text-lg tracking-tight">Vehicle Ownership</p>
-                                        <p className="text-xs text-slate-500 font-bold uppercase tracking-widest mt-0.5">{profileData.hasVehicle ? 'Asset Online' : 'No Asset Registered'}</p>
-                                    </div>
-                                </label>
-                            </div>
-                        </div>
-
-                        {profileData.hasVehicle && (
-                            <div className="grid md:grid-cols-3 gap-8 animate-fade-in p-8 bg-indigo-50/40 rounded-[2.5rem] border border-indigo-100/50 lg:p-10">
-                                <div className="space-y-3">
-                                    <label className="flex items-center gap-2 text-xs font-black uppercase tracking-widest text-indigo-600 mb-1 ml-1"><Car className="w-3.5 h-3.5" /> Class</label>
-                                    <select value={profileData.vehicleType} onChange={(e) => setProfileData({ ...profileData, vehicleType: e.target.value })} className="input-field">
-                                        <option value="bike">Motorcycle</option>
-                                        <option value="scooty">Scooter</option>
-                                        <option value="car">Car / SUV</option>
-                                        <option value="auto">Auto Rikshaw</option>
-                                    </select>
-                                </div>
-                                <div className="space-y-3">
-                                    <label className="flex items-center gap-2 text-xs font-black uppercase tracking-widest text-indigo-600 mb-1 ml-1"><Fuel className="w-3.5 h-3.5" /> Energy Source</label>
-                                    <select value={profileData.fuelType} onChange={(e) => setProfileData({ ...profileData, fuelType: e.target.value })} className="input-field">
-                                        <option value="petrol">Petrol</option>
-                                        <option value="diesel">Diesel</option>
-                                    </select>
-                                </div>
-                                <div className="space-y-3">
-                                    <label className="flex items-center gap-2 text-xs font-black uppercase tracking-widest text-indigo-600 mb-1 ml-1"><Zap className="w-3.5 h-3.5" /> Efficiency Rating</label>
-                                    <div className="relative">
-                                        <input type="number" step="0.1" value={profileData.mileage} onChange={(e) => setProfileData({ ...profileData, mileage: e.target.value })} className="input-field pr-16" required placeholder="e.g. 15.5" />
-                                        <span className="absolute right-6 top-1/2 -translate-y-1/2 text-xs font-black text-slate-400">KM/L</span>
-                                    </div>
-                                </div>
-                            </div>
-                        )}
-                        <div className="flex justify-end pt-4">
-                            <button type="submit" className="btn-primary w-full sm:w-auto px-12 text-sm tracking-widest uppercase">Update Network Profile</button>
-                        </div>
-                    </form>
                 </div>
-            )}
 
-            <div className="grid lg:grid-cols-2 gap-10">
+                {/* MODE TOGGLES */}
+                <div className="flex flex-col xs:flex-row gap-3 xs:gap-4 mb-10 sm:mb-16">
+                    <button onClick={() => setViewMode('active')} className={`flex-1 py-4 sm:py-5 rounded-xl sm:rounded-2xl font-black text-[9px] sm:text-[10px] uppercase tracking-[0.3em] transition-all border ${viewMode === 'active' ? 'bg-primary-600 text-white border-primary-500' : 'bg-white/5 text-slate-500 border-white/5 hover:border-white/10'}`}>
+                        Active Streams
+                    </button>
+                    <button onClick={() => setViewMode('history')} className={`flex-1 py-4 sm:py-5 rounded-xl sm:rounded-2xl font-black text-[9px] sm:text-[10px] uppercase tracking-[0.3em] transition-all border ${viewMode === 'history' ? 'bg-primary-600 text-white border-primary-500' : 'bg-white/5 text-slate-500 border-white/5 hover:border-white/10'}`}>
+                        Journey Archive
+                    </button>
+                </div>
 
-                {/* Left Stream: Rides I am joining */}
-                <div className="space-y-8">
-                    <div className="flex items-center justify-between px-2">
-                        <div className="flex items-center gap-3">
+                {/* PROFILE EDIT FORM */}
+                {isEditingProfile && (
+                    <div className="glass-panel mb-24 animate-slide-up border-primary-500/30">
+                        <form onSubmit={handleProfileSubmit} className="space-y-12">
+                            <div className="grid md:grid-cols-2 gap-10">
+                                <div className="space-y-4">
+                                    <label className="text-[10px] font-black uppercase tracking-widest text-slate-500 ml-1">Identity Name</label>
+                                    <input type="text" value={profileData.name} onChange={(e) => setProfileData({ ...profileData, name: e.target.value })} className="input-field" required />
+                                </div>
+                                <div className="flex items-center bg-white/5 p-6 rounded-2xl border border-white/5 group cursor-pointer" onClick={() => setProfileData({ ...profileData, hasVehicle: !profileData.hasVehicle })}>
+                                    <div className={`w-14 h-14 rounded-xl flex items-center justify-center transition-all ${profileData.hasVehicle ? 'bg-primary-500 text-white' : 'bg-slate-800 text-slate-500'}`}>
+                                        <Car className="w-7 h-7" />
+                                    </div>
+                                    <div className="ml-6">
+                                        <p className="text-white font-black uppercase tracking-tight">Vehicle Access</p>
+                                        <p className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">{profileData.hasVehicle ? 'Asset Online' : 'No Asset'}</p>
+                                    </div>
+                                </div>
+                            </div>
+                            {profileData.hasVehicle && (
+                                <div className="grid md:grid-cols-3 gap-8 animate-fade-in bg-white/5 p-10 rounded-3xl border border-white/5">
+                                    <div className="space-y-4">
+                                        <label className="text-[10px] font-black uppercase tracking-widest text-primary-400">Class</label>
+                                        <select value={profileData.vehicleType} onChange={(e) => setProfileData({ ...profileData, vehicleType: e.target.value })} className="input-field">
+                                            <option value="bike">Motorcycle</option>
+                                            <option value="car">Car / SUV</option>
+                                        </select>
+                                    </div>
+                                    <div className="space-y-4">
+                                        <label className="text-[10px] font-black uppercase tracking-widest text-primary-400">Energy</label>
+                                        <select value={profileData.fuelType} onChange={(e) => setProfileData({ ...profileData, fuelType: e.target.value })} className="input-field">
+                                            <option value="petrol">Petrol</option>
+                                            <option value="diesel">Diesel</option>
+                                        </select>
+                                    </div>
+                                    <div className="space-y-4">
+                                        <label className="text-[10px] font-black uppercase tracking-widest text-primary-400">Rating (KM/L)</label>
+                                        <input type="number" step="0.1" value={profileData.mileage} onChange={(e) => setProfileData({ ...profileData, mileage: e.target.value })} className="input-field" required />
+                                    </div>
+                                </div>
+                            )}
+                            <div className="flex justify-end">
+                                <button type="submit" className="btn-primary !w-auto px-16">Update Neural Link</button>
+                            </div>
+                        </form>
+                    </div>
+                )}
+
+                {/* REEDS GRID */}
+                <div className="grid lg:grid-cols-2 gap-10">
+                    <div className="space-y-10">
+                        <h3 className="text-2xl font-black text-white tracking-tighter uppercase flex items-center gap-4">
                             <div className="w-2 h-8 bg-primary-600 rounded-full"></div>
-                            <h2 className="text-2xl font-black text-slate-900 tracking-tighter">Incoming Streams</h2>
-                        </div>
-                        <span className="text-[10px] font-black uppercase tracking-widest text-slate-400 bg-slate-100 px-3 py-1 rounded-full">{requests.asPassenger.length} ACTIVE</span>
+                            Joined Journeys
+                        </h3>
+                        <div className="space-y-6">{passengerList}</div>
                     </div>
-
-                    <div className="space-y-6">
-                        {passengerList}
-                    </div>
-                </div>
-
-                {/* Right Stream: Requests for my rides */}
-                <div className="space-y-8">
-                    <div className="flex items-center justify-between px-2">
-                        <div className="flex items-center gap-3">
+                    <div className="space-y-10">
+                        <h3 className="text-2xl font-black text-white tracking-tighter uppercase flex items-center gap-4">
                             <div className="w-2 h-8 bg-indigo-600 rounded-full"></div>
-                            <h2 className="text-2xl font-black text-slate-900 tracking-tighter">Outgoing Signals</h2>
-                        </div>
-                        <span className="text-[10px] font-black uppercase tracking-widest text-slate-400 bg-slate-100 px-3 py-1 rounded-full">{requests.asDriver.length} PENDING</span>
-                    </div>
-
-                    <div className="space-y-6">
-                        {driverList}
+                            Hosted Streams
+                        </h3>
+                        <div className="space-y-6">{driverList}</div>
                     </div>
                 </div>
             </div>

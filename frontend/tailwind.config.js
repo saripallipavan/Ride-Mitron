@@ -6,8 +6,12 @@ export default {
     ],
     theme: {
         extend: {
+            screens: {
+                'xs': '475px',
+            },
             fontFamily: {
                 sans: ['"Inter"', 'sans-serif'],
+                display: ['"Poppins"', 'sans-serif'],
             },
             colors: {
                 primary: {

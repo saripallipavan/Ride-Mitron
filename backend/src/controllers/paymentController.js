@@ -81,9 +81,16 @@ export const verifyPayment = async (req, res, next) => {
         const request = await RideRequest.findById(requestId).populate('ride');
 
         if (paymentType === 'RIDER_FEE') {
-            request.paymentStatus = 'COMPLETED';
+            request.riderPaid = true;
+            request.paymentStatus = 'COMPLETED'; // For backward compatibility
             await request.save();
         } else if (paymentType === 'DRIVER_FEE') {
+            request.driverPaid = true;
+            await request.save();
+        }
+
+        // Only accept the ride and deduct seats if BOTH have paid
+        if (request.riderPaid && request.driverPaid) {
             request.status = REQUEST_STATUS.ACCEPTED;
             await request.save();
 
@@ -93,6 +100,42 @@ export const verifyPayment = async (req, res, next) => {
         }
 
         res.status(200).json({ message: 'Payment verified successfully', request });
+    } catch (error) {
+        next(error);
+    }
+};
+
+export const razorpayWebhook = async (req, res, next) => {
+    try {
+        const secret = env.razorpay.webhookSecret;
+        const signature = req.headers['x-razorpay-signature'];
+
+        if (!secret || !signature) {
+            return res.status(400).json({ message: 'Webhook secret or signature missing' });
+        }
+
+        const expectedSignature = crypto
+            .createHmac('sha256', secret)
+            .update(JSON.stringify(req.body))
+            .digest('hex');
+
+        if (expectedSignature !== signature) {
+            return res.status(400).json({ message: 'Invalid webhook signature' });
+        }
+
+        // Handle specific events
+        const { event, payload } = req.body;
+
+        if (event === 'payment.captured') {
+            const payment = payload.payment.entity;
+            const orderId = payment.order_id;
+            
+            // In a real scenario, you'd find the RideRequest by orderId or some notes
+            // For now, let's log it. You should store the Razorpay Order ID in the RideRequest model ideally.
+            console.log('Payment Captured Webhook:', orderId);
+        }
+
+        res.status(200).json({ status: 'ok' });
     } catch (error) {
         next(error);
     }

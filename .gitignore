@@ -13,3 +13,8 @@ yarn-error.log
 .vscode
 .idea
 .DS_Store
+coverage
+*.txt
+lint_results*
+test_output*
+error_utf8*

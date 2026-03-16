@@ -27,6 +27,14 @@ const rideRequestSchema = new mongoose.Schema(
             type: Number,
             required: true,
         },
+        riderPaid: {
+            type: Boolean,
+            default: false,
+        },
+        driverPaid: {
+            type: Boolean,
+            default: false,
+        },
         paymentStatus: {
             type: String,
             enum: ['PENDING', 'COMPLETED', 'FAILED'],

@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { rideAPI } from '../api/apiRoutes';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
-import { MapPin, Navigation, Calendar, Users, ShieldAlert, CheckCircle, Car, Globe, ArrowRight } from 'lucide-react';
+import { MapPin, Navigation, Users, ShieldAlert, CheckCircle, Car, Globe, ArrowRight, Zap, Info, Clock } from 'lucide-react';
 
 export default function PostRide() {
     const { user } = useAuth();
@@ -13,11 +13,24 @@ export default function PostRide() {
         originName: '',
         destName: '',
         startTime: '',
-        totalSeats: 1
+        totalSeats: 1,
+        manualDistance: ''
     });
+
+    const [isTimeApplied, setIsTimeApplied] = useState(false);
 
     const handleChange = (e) => {
         setFormData({ ...formData, [e.target.name]: e.target.value });
+        if (e.target.name === 'startTime') setIsTimeApplied(false);
+    };
+
+    const handleApplyTime = (e) => {
+        e.preventDefault();
+        if (formData.startTime) {
+            setIsTimeApplied(true);
+        } else {
+            alert("Please select a valid time first.");
+        }
     };
 
     const handleSubmit = async (e) => {
@@ -28,7 +41,8 @@ export default function PostRide() {
                 origin: { coordinates: [null, null], name: formData.originName },
                 destination: { coordinates: [null, null], name: formData.destName },
                 startTime: formData.startTime,
-                totalSeats: Number(formData.totalSeats)
+                totalSeats: Number(formData.totalSeats),
+                manualDistance: formData.manualDistance ? Number(formData.manualDistance) : undefined
             });
             alert("Ride Posted Successfully! Fare calculated.");
             navigate('/dashboard');
@@ -40,149 +54,229 @@ export default function PostRide() {
 
     if (!user?.vehicleDetails?.hasVehicle) {
         return (
-            <div className="flex justify-center items-center min-h-[70vh] px-4 animate-fade-in">
-                <div className="glass-panel p-12 max-w-lg w-full text-center relative overflow-hidden shine-effect">
-                    <div className="absolute top-0 right-0 w-48 h-48 bg-red-500/10 rounded-full blur-[100px] -mr-24 -mt-24"></div>
+            <div className="flex justify-center items-center min-h-[80vh] px-4 animate-fade-in">
+                <div className="glass-panel p-12 max-w-lg w-full text-center relative overflow-hidden group border-amber-200">
+                    <div className="absolute top-0 right-0 w-64 h-64 bg-amber-500/10 rounded-full blur-[100px] -mr-32 -mt-32"></div>
                     
-                    <div className="bg-red-50 w-24 h-24 rounded-[2rem] mx-auto mb-8 flex items-center justify-center border border-red-100 shadow-xl shadow-red-500/5">
-                        <ShieldAlert className="w-10 h-10 text-red-500" />
+                    <div className="bg-amber-50 w-24 h-24 rounded-[2.5rem] mx-auto mb-10 flex items-center justify-center border border-amber-100 shadow-xl shadow-amber-500/5 group-hover:scale-110 transition-transform duration-500">
+                        <Car className="w-12 h-12 text-amber-500" />
                     </div>
 
-                    <h2 className="text-3xl font-black text-slate-900 mb-4 tracking-tighter">Network Access Denied</h2>
-                    <p className="text-slate-500 font-bold mb-10 text-sm leading-relaxed">
-                        To broadcast a journey signal, your node must be associated with a registered vehicle asset. 
-                        Please update your identity profile to proceed with the synchronization.
+                    <h2 className="text-4xl font-black text-slate-900 mb-6 tracking-tighter uppercase">Profile Incomplete</h2>
+                    <p className="text-slate-500 font-bold mb-12 text-sm leading-relaxed uppercase tracking-widest">
+                        To dispatch a ride, your node must be registered with a vehicle asset. Please update your profile with vehicle details to proceed.
                     </p>
 
-                    <button onClick={() => navigate('/dashboard')} className="btn-primary w-full tracking-[0.2em] uppercase text-xs py-5">Initialize Profile Update</button>
+                    <button 
+                        onClick={() => navigate('/dashboard')} 
+                        className="btn-primary w-full tracking-[0.3em] uppercase text-xs py-6 shadow-amber-500/20"
+                    >
+                        Register Vehicle Details
+                    </button>
+                    
+                    <button 
+                        onClick={() => navigate('/dashboard')}
+                        className="mt-6 text-[10px] font-black uppercase tracking-widest text-slate-400 hover:text-slate-900 transition-colors"
+                    >
+                        Back to Control Center
+                    </button>
                 </div>
             </div>
         );
     }
 
     return (
-        <div className="max-w-5xl mx-auto py-12 lg:py-20 animate-slide-up relative z-10 px-4">
-            <div className="text-center mb-16">
-                <div className="inline-flex items-center gap-3 bg-emerald-50 px-5 py-2 rounded-full mb-8 text-emerald-700 font-black uppercase tracking-[0.2em] text-[10px] shadow-sm border border-emerald-100">
-                    <CheckCircle className="w-3.5 h-3.5" /> Node Identity Confirmed
-                </div>
-                <h1 className="text-5xl sm:text-7xl font-black text-slate-900 tracking-tighter mb-6">
-                    Dispatch <span className="text-transparent bg-clip-text bg-gradient-to-r from-primary-600 via-indigo-600 to-purple-600">Journey Signal</span>
-                </h1>
-                <p className="text-xl text-slate-500 font-bold max-w-2xl mx-auto leading-relaxed">
-                    Split the energy cost of your {user.vehicleDetails.vehicleType} by inviting verified peers to coordinate on your route path.
-                </p>
+        <div className="w-full relative min-h-screen pb-40">
+             {/* Background Decor */}
+             <div className="fixed inset-0 pointer-events-none overflow-hidden -z-10">
+                <div className="absolute top-0 left-0 w-[60rem] h-[60rem] bg-indigo-600/5 rounded-full blur-[120px] -translate-y-1/2 -translate-x-1/2"></div>
+                <div className="absolute bottom-0 right-0 w-[50rem] h-[50rem] bg-primary-600/5 rounded-full blur-[100px] translate-y-1/2 translate-x-1/2"></div>
             </div>
 
-            <form onSubmit={handleSubmit} className="glass-panel !p-2 sm:!p-3 border-none bg-transparent shadow-none">
-                <div className="grid lg:grid-cols-12 gap-6 items-stretch">
-                    
-                    {/* Route Configuration */}
-                    <div className="lg:col-span-8 space-y-6">
-                        <div className="glass-panel bg-white/60 p-8 sm:p-10 border-white/40">
-                            <h3 className="text-xs font-black text-slate-400 uppercase tracking-[0.3em] flex items-center gap-3 mb-10">
-                                <Globe className="w-4 h-4 text-primary-500 animate-spin-slow" /> Geolocation Vectors
-                            </h3>
-                            
-                            <div className="space-y-10">
-                                <div className="relative group">
-                                    <div className="absolute left-6 top-1/2 -translate-y-1/2 text-primary-500 group-focus-within:scale-110 transition-transform">
-                                        <MapPin className="w-6 h-6" />
-                                    </div>
-                                    <input 
-                                        name="originName" 
-                                        value={formData.originName} 
-                                        onChange={handleChange} 
-                                        className="input-field pl-16 py-6 text-lg tracking-tight placeholder:font-bold" 
-                                        placeholder="Starting Vector Name (Point A)" 
-                                        required 
-                                    />
-                                    <div className="absolute -left-3 top-[calc(100%+12px)] w-0.5 h-10 bg-slate-200 ml-6 rounded-full opacity-50"></div>
-                                </div>
-
-                                <div className="relative group pt-2">
-                                    <div className="absolute left-6 top-1/2 -translate-y-1/2 text-indigo-500 group-focus-within:scale-110 transition-transform">
-                                        <Navigation className="w-6 h-6 transform rotate-45" />
-                                    </div>
-                                    <input 
-                                        name="destName" 
-                                        value={formData.destName} 
-                                        onChange={handleChange} 
-                                        className="input-field pl-16 py-6 text-lg tracking-tight placeholder:font-bold" 
-                                        placeholder="Target Destination Vector (Point B)" 
-                                        required 
-                                    />
-                                </div>
-                            </div>
+            <div className="max-w-7xl mx-auto pt-16 lg:pt-24 px-6 relative z-10">
+                <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-12 mb-16 px-2">
+                    <div className="max-w-3xl">
+                        <div className="inline-flex items-center gap-3 bg-white/40 backdrop-blur-md border border-white/60 px-5 py-2 rounded-full mb-8 text-emerald-600 font-black uppercase tracking-[0.3em] text-[9px] shadow-sm">
+                            <CheckCircle className="w-3.5 h-3.5" /> Identity Core Verified
                         </div>
+                        <h1 className="text-6xl md:text-8xl font-black text-slate-900 tracking-[-0.05em] mb-6 leading-none">
+                            DISPATCH <span className="text-transparent bg-clip-text bg-gradient-to-r from-primary-600 to-indigo-600">JOURNEY</span>
+                        </h1>
+                        <p className="text-xl text-slate-500 font-bold leading-relaxed max-w-xl">
+                            Synchronize your {user.vehicleDetails.vehicleType} class asset with the Mitron grid and optimize energy split flows.
+                        </p>
                     </div>
+                </div>
 
-                    {/* Operational Parameters */}
-                    <div className="lg:col-span-4 space-y-6">
-                        <div className="glass-panel bg-[#020617] p-8 sm:p-10 text-white border-white/10 h-full flex flex-col justify-between relative overflow-hidden">
-                            <div className="absolute top-0 right-0 w-32 h-32 bg-primary-600 rounded-full blur-[80px] opacity-20 -mr-16 -mt-16"></div>
-                            
-                            <div className="space-y-10 relative z-10">
-                                <h3 className="text-[10px] font-black text-slate-500 uppercase tracking-[0.3em] flex items-center gap-3">
-                                    <Calendar className="w-4 h-4 text-indigo-400" /> Time Synchronization
-                                </h3>
+                <form onSubmit={handleSubmit}>
+                    <div className="grid lg:grid-cols-12 gap-10 items-stretch">
+                        
+                        {/* Route Vectors */}
+                        <div className="lg:col-span-8 space-y-10">
+                            <div className="glass-panel !p-6 sm:!p-12 !rounded-[4rem] group hover:shadow-primary-600/5 transition-all">
+                                <div className="flex items-center gap-4 mb-12">
+                                    <div className="w-2 h-8 bg-primary-600 rounded-full"></div>
+                                    <h3 className="text-xs font-black text-slate-400 uppercase tracking-[0.4em]">Trajectory Vectors</h3>
+                                </div>
                                 
-                                <div className="space-y-6">
-                                    <div className="space-y-3">
-                                        <label className="text-[10px] font-black uppercase tracking-widest text-slate-400 ml-1">Departure Sequence</label>
-                                        <input 
-                                            type="datetime-local" 
-                                            name="startTime" 
-                                            value={formData.startTime} 
-                                            onChange={handleChange} 
-                                            className="w-full bg-white/5 border border-white/10 rounded-2xl px-6 py-4 text-sm font-black text-white focus:ring-4 focus:ring-primary-500/20 focus:border-primary-500 transition-all cursor-pointer" 
-                                            required 
-                                        />
+                                <div className="space-y-12">
+                                    <div className="relative group/input">
+                                        <div className="absolute left-0 top-1/2 -translate-y-1/2 text-primary-500 scale-75 sm:scale-100 transition-transform group-focus-within/input:scale-110">
+                                            <div className="p-3 sm:p-4 rounded-2xl bg-primary-50 border border-primary-100 shadow-sm"><MapPin className="w-5 h-5 sm:w-6 h-6" /></div>
+                                        </div>
+                                        <div className="w-full pl-16 sm:pl-24">
+                                            <label className="block text-[10px] font-black uppercase tracking-[0.2em] text-slate-400 mb-2 ml-1">Origin Point</label>
+                                            <input 
+                                                name="originName" 
+                                                value={formData.originName} 
+                                                onChange={handleChange} 
+                                                className="w-full bg-transparent border-b-2 border-slate-100 py-4 text-lg sm:text-2xl font-black text-slate-900 focus:outline-none focus:border-primary-500 transition-colors placeholder:text-slate-200" 
+                                                placeholder="Enter Origin Location" 
+                                                required 
+                                            />
+                                        </div>
                                     </div>
 
-                                    <div className="space-y-3">
-                                        <label className="text-[10px] font-black uppercase tracking-widest text-slate-400 ml-1">Payload Capacity (Seats)</label>
-                                        <div className="relative">
-                                            <select 
-                                                name="totalSeats" 
-                                                value={formData.totalSeats} 
+                                    <div className="relative group/input">
+                                        <div className="absolute left-0 top-1/2 -translate-y-1/2 text-indigo-500 scale-75 sm:scale-100 transition-transform group-focus-within/input:scale-110">
+                                            <div className="p-3 sm:p-4 rounded-2xl bg-indigo-50 border border-indigo-100 shadow-sm"><Navigation className="w-5 h-5 sm:w-6 h-6 transform rotate-45" /></div>
+                                        </div>
+                                        <div className="w-full pl-16 sm:pl-24">
+                                            <label className="block text-[10px] font-black uppercase tracking-[0.2em] text-slate-400 mb-2 ml-1">Target Convergence</label>
+                                            <input 
+                                                name="destName" 
+                                                value={formData.destName} 
                                                 onChange={handleChange} 
-                                                className="w-full bg-white/5 border border-white/10 rounded-2xl px-6 py-4 text-sm font-black text-white focus:ring-4 focus:ring-primary-500/20 focus:border-primary-500 transition-all cursor-pointer appearance-none"
-                                            >
-                                                {[1, 2, 3, 4, 5, 6].map(num => (
-                                                    <option key={num} value={num} className="bg-slate-900 text-white">{num} PEER UNITS</option>
-                                                ))}
-                                            </select>
-                                            <div className="absolute right-6 top-1/2 -translate-y-1/2 pointer-events-none text-slate-500">
-                                                <Users className="w-4 h-4" />
-                                            </div>
+                                                className="w-full bg-transparent border-b-2 border-slate-100 py-4 text-lg sm:text-2xl font-black text-slate-900 focus:outline-none focus:border-primary-500 transition-colors placeholder:text-slate-200" 
+                                                placeholder="Enter Destination Location" 
+                                                required 
+                                            />
                                         </div>
                                     </div>
                                 </div>
                             </div>
 
-                            <button 
-                                type="submit" 
-                                disabled={loading} 
-                                className="w-full bg-primary-600 hover:bg-primary-500 text-white font-black py-6 px-4 rounded-[2rem] shadow-2xl shadow-primary-600/30 active:scale-95 transition-all mt-10 relative z-10 shine-effect flex items-center justify-center gap-4 uppercase tracking-widest text-xs"
-                            >
-                                {loading ? (
-                                    <Globe className="w-5 h-5 animate-spin" />
-                                ) : (
-                                    <>
-                                        Broadcast Signal
-                                        <ArrowRight className="w-5 h-5" />
-                                    </>
-                                )}
-                            </button>
+                            <div className="flex flex-col md:flex-row gap-6">
+                                <div className="flex-1 bg-white/40 backdrop-blur-md p-8 rounded-[2.5rem] border border-white/60 shadow-sm flex items-center gap-6">
+                                    <div className="w-14 h-14 rounded-2xl bg-slate-900 text-white flex items-center justify-center shrink-0 shadow-lg"><Car className="w-6 h-6" /></div>
+                                    <div>
+                                        <p className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-400">Locked Asset</p>
+                                        <p className="font-black text-slate-900 uppercase">
+                                            {user.vehicleDetails.model || user.vehicleDetails.vehicleType} · {user.vehicleDetails.fuelType}
+                                        </p>
+                                    </div>
+                                </div>
+                                <div className="flex-1 bg-white/40 backdrop-blur-md p-8 rounded-[2.5rem] border border-white/60 shadow-sm flex flex-col gap-4">
+                                    <div className="flex items-center gap-6">
+                                        <div className="w-14 h-14 rounded-2xl bg-indigo-500 text-white flex items-center justify-center shrink-0 shadow-lg"><Zap className="w-6 h-6" /></div>
+                                        <div>
+                                            <p className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-400">Manual Override</p>
+                                            <input 
+                                                type="number" 
+                                                name="manualDistance" 
+                                                value={formData.manualDistance || ''} 
+                                                onChange={handleChange} 
+                                                placeholder="Manual KM (Optional)" 
+                                                className="w-full bg-transparent border-b border-indigo-200 text-xs font-black text-slate-900 focus:outline-none focus:border-indigo-500"
+                                            />
+                                        </div>
+                                    </div>
+                                    <p className="text-[8px] font-bold text-slate-400 uppercase tracking-widest pl-20">
+                                        If Maps shows wrong distance, correction here.
+                                    </p>
+                                </div>
+                            </div>
+                        </div>
+
+                        {/* Config Panel */}
+                        <div className="lg:col-span-4 space-y-10">
+                            <div className="bg-[#020617] rounded-[4rem] p-10 sm:p-12 text-white shadow-3xl relative overflow-hidden flex flex-col justify-between group">
+                                <div className="absolute inset-0 bg-[url('https://www.transparenttextures.com/patterns/carbon-fibre.png')] opacity-10 mix-blend-overlay"></div>
+                                <div className="absolute top-0 right-0 w-64 h-64 bg-primary-600/10 rounded-full blur-[80px]"></div>
+                                
+                                <div className="space-y-12 relative z-10">
+                                    <h3 className="text-[9px] font-black text-slate-500 uppercase tracking-[0.4em]">Sync Parameters</h3>
+                                    
+                                    <div className="space-y-8">
+                                        <div className="space-y-4">
+                                            <div className="flex items-center justify-between ml-1">
+                                                <label className="text-[9px] font-black uppercase tracking-[0.2em] text-slate-500">Time Synchronicity</label>
+                                                {isTimeApplied && <span className="text-[8px] font-black text-emerald-500 uppercase tracking-widest flex items-center gap-1 animate-fade-in"><CheckCircle className="w-2.5 h-2.5" /> SECURELY LOCKED</span>}
+                                            </div>
+                                            <div className="relative group">
+                                                <input 
+                                                    type="datetime-local" 
+                                                    name="startTime" 
+                                                    value={formData.startTime} 
+                                                    onChange={handleChange} 
+                                                    className={`w-full bg-white/5 border rounded-[2rem] px-8 py-5 text-sm font-black text-white focus:ring-4 focus:ring-primary-500/20 focus:border-primary-500 transition-all cursor-pointer ${isTimeApplied ? 'border-emerald-500/50 bg-emerald-500/5' : 'border-white/10'}`} 
+                                                    required 
+                                                />
+                                                <Clock className={`absolute right-6 top-1/2 -translate-y-1/2 w-5 h-5 transition-colors ${isTimeApplied ? 'text-emerald-500' : 'text-slate-500'}`} />
+                                            </div>
+                                            {!isTimeApplied && (
+                                                <button 
+                                                    onClick={handleApplyTime}
+                                                    className="w-full py-3 bg-primary-600/20 hover:bg-primary-600/40 text-primary-400 border border-primary-600/30 rounded-2xl text-[9px] font-black uppercase tracking-widest transition-all"
+                                                >
+                                                    Apply Synchronicity
+                                                </button>
+                                            )}
+                                        </div>
+
+                                        <div className="space-y-4">
+                                            <label className="text-[9px] font-black uppercase tracking-[0.2em] text-slate-500 ml-1">Payload Units (Seats)</label>
+                                            <div className="relative group/select">
+                                                <select 
+                                                    name="totalSeats" 
+                                                    value={formData.totalSeats} 
+                                                    onChange={handleChange} 
+                                                    className="w-full bg-white/5 border border-white/10 rounded-[2rem] px-8 py-5 text-sm font-black text-white focus:ring-4 focus:ring-primary-500/20 focus:border-primary-500 transition-all cursor-pointer appearance-none group-hover/select:bg-white/10"
+                                                >
+                                                    {[1, 2, 3, 4, 5, 6].map(num => (
+                                                        <option key={num} value={num} className="bg-slate-900 text-white uppercase">{num} PEER UNITS</option>
+                                                    ))}
+                                                </select>
+                                                <Users className="absolute right-8 top-1/2 -translate-y-1/2 w-5 h-5 text-primary-500 pointer-events-none group-hover/select:translate-x-1 transition-transform" />
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <div className="mt-16 space-y-6 relative z-10">
+                                    <button 
+                                        type="submit" 
+                                        disabled={loading || !isTimeApplied} 
+                                        className={`btn-primary !py-8 !rounded-[2.5rem] relative overflow-hidden group/btn !w-full ${!isTimeApplied ? 'opacity-50 cursor-not-allowed grayscale' : ''}`}
+                                    >
+                                        {loading ? (
+                                            <Globe className="w-6 h-6 animate-spin mx-auto text-white" />
+                                        ) : (
+                                            <div className="flex items-center justify-center gap-4 text-sm font-black uppercase tracking-[0.3em]">
+                                                DISPATCH SIGNAL <ArrowRight className="w-5 h-5 group-hover/btn:translate-x-2 transition-transform" />
+                                            </div>
+                                        )}
+                                        <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/10 to-transparent -translate-x-full group-hover/btn:animate-shimmer pointer-events-none"></div>
+                                    </button>
+                                    
+                                    <div className="bg-white/5 p-6 rounded-3xl flex gap-4">
+                                        <Info className="w-4 h-4 text-slate-500 shrink-0 mt-0.5" />
+                                        <p className="text-[8px] font-bold text-slate-500 leading-relaxed uppercase tracking-widest">
+                                            Signal broadcast costs ₹0. Final fare split is calculated upon successful peer convergence.
+                                        </p>
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            <div className="px-6 text-center opacity-40">
+                                <p className="text-[7px] font-black text-slate-400 uppercase tracking-[0.5em] leading-loose">
+                                    All telemetry is encrypted. Node violations subject to trust score penalties.
+                                </p>
+                            </div>
                         </div>
                     </div>
-                </div>
-            </form>
-            
-            <p className="text-center text-[10px] font-black text-slate-400 uppercase tracking-[0.3em] mt-16 px-6 leading-loose">
-                Coordinates are encrypted via Google Maps Protocol. Fare mitigation logic is peer-to-peer calibrated based on real-time energy prices.
-            </p>
+                </form>
+            </div>
         </div>
     );
 }
