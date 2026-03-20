@@ -61,7 +61,10 @@ It connects drivers with empty seats to passengers traveling in the same directi
 5. Fare is calculated dynamically  
 6. User books ride and completes payment  
 7. Ride is confirmed
-   
+    
+## 🏗️ Project Structure
+
+
 Ride-Mitron/
 ├── backend/ # Express.js API server
 │ ├── config/
@@ -73,10 +76,6 @@ Ride-Mitron/
 │ ├── pages/
 │ └── store/
 └── README.md
----
-
-## 🏗️ Project Structure
-
 ---
 
 ## 🚀 Getting Started
