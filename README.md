@@ -62,21 +62,7 @@ It connects drivers with empty seats to passengers traveling in the same directi
 6. User books ride and completes payment  
 7. Ride is confirmed
     
-## 🏗️ Project Structure
 
-
-Ride-Mitron/
-├── backend/ # Express.js API server
-│ ├── config/
-│ ├── controllers/
-│ ├── models/
-│ └── routes/
-├── frontend/ # React (Vite) application
-│ ├── components/
-│ ├── pages/
-│ └── store/
-└── README.md
----
 
 ## 🚀 Getting Started
 
